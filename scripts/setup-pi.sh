@@ -21,6 +21,5 @@ fi
 echo
 echo "cmake:    $(cmake --version | head -n1)"
 echo "gcc:      $(gcc --version | head -n1)"
-echo "libgpiod: $(pkg-config --modversion libgpiodcxx)"
-echo "GPIO chips:"
+echo "libgpiod: $(pkg-config --modversion libgpiodcxx)"echo "GPIO chips:"
 gpiodetect

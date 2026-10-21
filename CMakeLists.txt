@@ -21,6 +21,19 @@ message(STATUS "libgpiod ${GPIOD_VERSION}")
 
 find_package(Threads REQUIRED)
 
+# spdlog, downloaded and built by CMake on first configure (cached in build/_deps).
+include(FetchContent)
+FetchContent_Declare(spdlog
+    URL https://github.com/gabime/spdlog/archive/refs/tags/v1.15.3.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+FetchContent_MakeAvailable(spdlog)
+
+# argparse (header-only command-line parser), fetched the same way.
+FetchContent_Declare(argparse
+    URL https://github.com/p-ranav/argparse/archive/refs/tags/v3.1.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+FetchContent_MakeAvailable(argparse)
+
 # Every source and header under src/; CONFIGURE_DEPENDS re-checks the folders on each build.
 file(GLOB_RECURSE CLANKER_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/*.cpp")
@@ -42,4 +55,6 @@ target_compile_options(clanker_cleaner PRIVATE -Wall -Wextra -Wpedantic)
 
 target_link_libraries(clanker_cleaner PRIVATE
     PkgConfig::GPIOD
+    spdlog::spdlog
+    argparse::argparse
     Threads::Threads)

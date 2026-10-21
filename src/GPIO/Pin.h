@@ -1,40 +1,35 @@
 #pragma once
 #include <gpiod.hpp>
 
-#include <atomic>
-#include <mutex>
-#include <cstdlib>
-
+#include <cstdint>
 
 namespace ClankerCleaner::GPIO
 {
-
+    // Latest edge seen on an input pin.
     struct PinState
     {
         std::uint64_t ChangedNS;
         std::uint32_t Sequence;
+        std::uint16_t PinId;
         bool Triggered;
     };
 
-    class Pin 
+    // A GPIO line on the chip. Subclasses decide how the line is configured (input, output).
+    class Pin
     {
     public:
-        Pin(std::uint64_t pinId);
-        Pin(const Pin& other);
+        explicit Pin(std::uint32_t pinId);
+        virtual ~Pin() = default;
 
-        std::uint32_t GetPinId() { return pinId; }
+        std::uint32_t GetPinId() const { return pinId; }
 
-        void Configure(gpiod::line_config& config);
-        void HandleEvent(const gpiod::edge_event& event);
+        // Adds this pin's line settings to a request's config.
+        virtual void Configure(gpiod::line_config& config) const = 0;
 
-        PinState GetState();
+    protected:
+        Pin(const Pin&) = default;
+        Pin& operator=(const Pin&) = default;
 
-        void SetTriggeredType(gpiod::edge_event::event_type type) { triggeredType = type; }
-
-    private:
         std::uint32_t pinId = 0;
-        gpiod::edge_event::event_type triggeredType = gpiod::edge_event::event_type::FALLING_EDGE;
-        //std::mutex stateMutex;
-        PinState state{};        
     };
 }
