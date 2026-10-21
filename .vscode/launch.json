@@ -1,0 +1,31 @@
+{
+  // Debugs on the Pi: VS Code runs gdb there over SSH, so no cross-gdb is needed on Windows.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Pi: debug clanker_cleaner",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${config:clankerCleaner.remoteDir}/build/debug/clanker_cleaner",
+      "args": [],
+      "cwd": "${config:clankerCleaner.remoteDir}",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "preLaunchTask": "Pi: build (debug)",
+      "pipeTransport": {
+        "pipeCwd": "${workspaceFolder}",
+        "pipeProgram": "ssh",
+        "pipeArgs": ["-T", "${config:clankerCleaner.piHost}"],
+        "debuggerPath": "/usr/bin/gdb"
+      },
+      "sourceFileMap": {
+        "${config:clankerCleaner.remoteDir}": "${workspaceFolder}"
+      },
+      "setupCommands": [
+        { "description": "Pretty printing", "text": "-enable-pretty-printing", "ignoreFailures": true }
+      ]
+    }
+  ]
+}

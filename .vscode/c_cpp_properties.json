@@ -1,0 +1,29 @@
+{
+  // Local IntelliSense against the Pi's own headers; the real build runs on the Pi.
+  // Run the "Pi: fetch headers for IntelliSense" task to fill .cache/pi-sysroot.
+  // Paths mirror the Pi's g++ 14 search order (g++ -E -x c++ -v -).
+  "configurations": [
+    {
+      "name": "Raspberry Pi (aarch64, g++ 14)",
+      "compilerPath": "",
+      "intelliSenseMode": "linux-gcc-arm64",
+      "cStandard": "gnu17",
+      "cppStandard": "c++20",
+      "includePath": [
+        "${workspaceFolder}/src/**",
+        "${workspaceFolder}/.cache/pi-sysroot/usr/include/c++/14",
+        "${workspaceFolder}/.cache/pi-sysroot/usr/include/aarch64-linux-gnu/c++/14",
+        "${workspaceFolder}/.cache/pi-sysroot/usr/include/c++/14/backward",
+        "${workspaceFolder}/.cache/pi-sysroot/usr/lib/gcc/aarch64-linux-gnu/14/include",
+        "${workspaceFolder}/.cache/pi-sysroot/usr/include/aarch64-linux-gnu",
+        "${workspaceFolder}/.cache/pi-sysroot/usr/include"
+      ],
+      "defines": [
+        "__linux__",
+        "__aarch64__",
+        "CLANKER_VERSION=\"0.1.0\""
+      ]
+    }
+  ],
+  "version": 4
+}

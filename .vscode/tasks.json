@@ -1,0 +1,84 @@
+{
+  // All tasks run over SSH against the Pi set in .vscode/settings.json.
+  // Builds copy only files changed since the last sync, then compile on the Pi.
+  // cmd.exe is used because its pipes pass tar's binary stream through untouched.
+  "version": "2.0.0",
+  "options": {
+    "shell": { "executable": "cmd.exe", "args": ["/d", "/c"] }
+  },
+  "tasks": [
+    {
+      "label": "Pi: install dependencies",
+      "type": "shell",
+      "command": "scp scripts/setup-pi.sh ${config:clankerCleaner.piHost}:/tmp/clanker-setup-pi.sh && ssh -t ${config:clankerCleaner.piHost} \"bash /tmp/clanker-setup-pi.sh\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "Pi: fetch headers for IntelliSense",
+      "type": "shell",
+      "detail": "Copies the Pi's /usr/include and g++ headers into .cache/pi-sysroot. Rerun after installing new -dev packages on the Pi.",
+      "command": "scripts\\fetch-pi-headers.cmd ${config:clankerCleaner.piHost}",
+      "problemMatcher": []
+    },
+    {
+      "label": "Pi: sync sources",
+      "type": "shell",
+      "command": "scripts\\sync-to-pi.cmd ${config:clankerCleaner.piHost} ${config:clankerCleaner.remoteDir}",
+      "problemMatcher": []
+    },
+    {
+      "label": "Pi: full resync",
+      "detail": "Removes the Pi's copy of the sources (keeps build/) and copies everything again. Use after deleting or renaming files.",
+      "type": "shell",
+      "command": "ssh ${config:clankerCleaner.piHost} \"mkdir -p ${config:clankerCleaner.remoteDir} && find ${config:clankerCleaner.remoteDir} -mindepth 1 -maxdepth 1 ! -name build -exec rm -rf {} +\" && scripts\\sync-to-pi.cmd ${config:clankerCleaner.piHost} ${config:clankerCleaner.remoteDir} full",
+      "problemMatcher": []
+    },
+    {
+      "label": "Pi: build (debug)",
+      "type": "shell",
+      "command": "ssh ${config:clankerCleaner.piHost} \"cd ${config:clankerCleaner.remoteDir} && cmake --preset pi-debug && cmake --build --preset pi-debug\"",
+      "dependsOn": "Pi: sync sources",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": {
+        "owner": "cpp",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^/.*?/ClankerCleaner/(.*?):(\\d+):(\\d+):\\s+(warning|error|note):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
+    },
+    {
+      "label": "Pi: build (release)",
+      "type": "shell",
+      "command": "ssh ${config:clankerCleaner.piHost} \"cd ${config:clankerCleaner.remoteDir} && cmake --preset pi-release && cmake --build --preset pi-release\"",
+      "dependsOn": "Pi: sync sources",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Pi: run (debug)",
+      "type": "shell",
+      "command": "ssh -t ${config:clankerCleaner.piHost} \"${config:clankerCleaner.remoteDir}/build/debug/clanker_cleaner\"",
+      "dependsOn": "Pi: build (debug)",
+      "problemMatcher": []
+    },
+    {
+      "label": "Pi: open shell",
+      "type": "shell",
+      "command": "ssh -t ${config:clankerCleaner.piHost} \"cd ${config:clankerCleaner.remoteDir} 2>/dev/null; exec bash -l\"",
+      "presentation": { "panel": "dedicated", "focus": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pi: clean",
+      "type": "shell",
+      "command": "ssh ${config:clankerCleaner.piHost} \"rm -rf ${config:clankerCleaner.remoteDir}/build\"",
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  // Host alias from ~/.ssh/config (shared with the Remote-SSH extension); it supplies the user and key.
+  "clankerCleaner.piHost": "clanker-cleaner",
+  "clankerCleaner.remoteDir": "/home/rpi/ClankerCleaner",
+
+  // Terminal dropdown (+ ▾) entry that opens a shell on the Pi with Windows OpenSSH.
+  "terminal.integrated.profiles.windows": {
+    "Pi (clanker-cleaner)": {
+      "path": "C:\\Windows\\System32\\OpenSSH\\ssh.exe",
+      "args": ["clanker-cleaner"],
+      "icon": "remote"
+    }
+  },
+
+  // Builds happen on the Pi, so stop CMake Tools configuring locally on Windows.
+  "cmake.configureOnOpen": false,
+  "cmake.automaticReconfigure": false,
+
+  "C_Cpp.default.cppStandard": "c++20",
+  "files.eol": "\n",
+  "files.associations": { "*.hpp": "cpp" }
+}
