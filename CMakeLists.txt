@@ -21,8 +21,19 @@ message(STATUS "libgpiod ${GPIOD_VERSION}")
 
 find_package(Threads REQUIRED)
 
+# Every source and header under src/; CONFIGURE_DEPENDS re-checks the folders on each build.
+file(GLOB_RECURSE CLANKER_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE CLANKER_HEADERS CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/*.hpp"
+    "${CMAKE_SOURCE_DIR}/src/*.h")
+
 add_executable(clanker_cleaner
-    src/main.cpp)
+    ${CLANKER_SOURCES}
+    ${CLANKER_HEADERS})
+
+# Headers include relative to src/, e.g. "hardware/Probe.h".
+target_include_directories(clanker_cleaner PRIVATE "${CMAKE_SOURCE_DIR}/src")
 
 target_compile_definitions(clanker_cleaner PRIVATE
     CLANKER_VERSION="${PROJECT_VERSION}")
