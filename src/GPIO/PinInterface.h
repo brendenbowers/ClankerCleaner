@@ -53,6 +53,17 @@ namespace ClankerCleaner::GPIO
         Threading::ManualResetEvent& GetSync() { return sync; }
 
         std::vector<PinState> GetSince(std::uint64_t changedNS);
+        PinState GetState(std::uint32_t pinId) 
+        {
+            std::lock_guard<std::mutex> lock(updateMutex);
+            auto it = monitoredPins.find(pinId);
+            if(it != monitoredPins.end())
+            {
+                return it->second.GetState();
+            }
+
+            return PinState();
+        }
 
 
     private:
@@ -61,8 +72,6 @@ namespace ClankerCleaner::GPIO
         bool started = false;
 
         std::map<std::uint32_t,InputPin> monitoredPins;
-
-        std::map<std::uint32_t,PinState> states;
 
         mutable std::mutex outputMutex;
         std::map<std::uint32_t,OutputPin> outputPins;

@@ -45,7 +45,9 @@ namespace
         program.add_argument("--log-level")
             .help("minimum level to log")
             .default_value(options.Level)
-            .choices("trace", "debug", "info", "warn", "err", "critical", "off");
+            .choices("trace", "debug", "info", "warn", "err", "critical", "off")
+            .nargs(1)
+            .metavar("LEVEL");
 
         program.add_argument("--log-file")
             .help("also write to this rotating log file")
@@ -148,10 +150,10 @@ int main(int argumentCount, char** arguments)
         // Pins: the dirty tank sensor pulls LOW when wet, so a falling edge is the trigger.
         GPIO::PinInterface pins;
         pins.MonitorPin(GPIO::Constants::HIGH_WASTE_WATER_TANK, false);
-        pins.AddOutputPin(DirtyTank::Constants::State::PUMP_RELAY_PIN);
+        pins.AddOutputPin(GPIO::Constants::PUMP_RELAY_PIN);
         pins.Start();
         gpioLog->info("started: sensor on line {}, pump relay on line {}",
-                      GPIO::Constants::HIGH_WASTE_WATER_TANK, DirtyTank::Constants::State::PUMP_RELAY_PIN);
+                      GPIO::Constants::HIGH_WASTE_WATER_TANK, GPIO::Constants::PUMP_RELAY_PIN);
 
         // Flows: Idle waits for the sensor, EmptyTank runs the pump, then back to Idle.
         StateMachine::Machine machine;
