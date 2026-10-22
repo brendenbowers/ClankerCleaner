@@ -1,5 +1,4 @@
 #pragma once
-#include <gpiod.hpp>
 
 #include <cstdint>
 
@@ -17,7 +16,8 @@ namespace ClankerCleaner::GPIO
         OutputPin(const OutputPin&) = default;
         OutputPin& operator=(const OutputPin&) = default;
 
-        void Configure(gpiod::line_config& config) const override;
+        // Defined in OutputPin.<Platform>.cpp.
+        void Configure(PlatformLineConfig& config) const override;
 
         bool IsActiveLow() const { return activeLow; }
 

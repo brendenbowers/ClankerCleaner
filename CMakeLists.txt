@@ -14,10 +14,24 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
-# libgpiod 2.x C++ bindings (Raspberry Pi OS Trixie), installed by scripts/setup-pi.sh.
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GPIOD REQUIRED IMPORTED_TARGET libgpiodcxx>=2.0)
-message(STATUS "libgpiod ${GPIOD_VERSION}")
+# Target platform. Platform-specific files are named <Name>.<Platform>.cpp/.h, e.g.
+# GPIO/PinInterface.RPi.cpp, and only the selected platform's files are compiled.
+set(CLANKER_PLATFORMS RPi ESP32)
+set(CLANKER_PLATFORM "RPi" CACHE STRING "Target platform: ${CLANKER_PLATFORMS}")
+set_property(CACHE CLANKER_PLATFORM PROPERTY STRINGS ${CLANKER_PLATFORMS})
+if(NOT CLANKER_PLATFORM IN_LIST CLANKER_PLATFORMS)
+    message(FATAL_ERROR "Unknown CLANKER_PLATFORM '${CLANKER_PLATFORM}'; expected one of: ${CLANKER_PLATFORMS}")
+endif()
+message(STATUS "Platform ${CLANKER_PLATFORM}")
+
+set(CLANKER_PLATFORM_LIBRARIES)
+if(CLANKER_PLATFORM STREQUAL "RPi")
+    # libgpiod 2.x C++ bindings (Raspberry Pi OS Trixie), installed by scripts/setup-pi.sh.
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GPIOD REQUIRED IMPORTED_TARGET libgpiodcxx>=2.0)
+    message(STATUS "libgpiod ${GPIOD_VERSION}")
+    list(APPEND CLANKER_PLATFORM_LIBRARIES PkgConfig::GPIOD)
+endif()
 
 find_package(Threads REQUIRED)
 
@@ -41,6 +55,14 @@ file(GLOB_RECURSE CLANKER_HEADERS CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/*.hpp"
     "${CMAKE_SOURCE_DIR}/src/*.h")
 
+# Drop files belonging to the other platforms.
+foreach(OTHER_PLATFORM IN LISTS CLANKER_PLATFORMS)
+    if(NOT OTHER_PLATFORM STREQUAL CLANKER_PLATFORM)
+        list(FILTER CLANKER_SOURCES EXCLUDE REGEX "\\.${OTHER_PLATFORM}\\.cpp$")
+        list(FILTER CLANKER_HEADERS EXCLUDE REGEX "\\.${OTHER_PLATFORM}\\.(h|hpp)$")
+    endif()
+endforeach()
+
 add_executable(clanker_cleaner
     ${CLANKER_SOURCES}
     ${CLANKER_HEADERS})
@@ -48,13 +70,16 @@ add_executable(clanker_cleaner
 # Headers include relative to src/, e.g. "hardware/Probe.h".
 target_include_directories(clanker_cleaner PRIVATE "${CMAKE_SOURCE_DIR}/src")
 
+string(TOUPPER "${CLANKER_PLATFORM}" CLANKER_PLATFORM_UPPER)
 target_compile_definitions(clanker_cleaner PRIVATE
-    CLANKER_VERSION="${PROJECT_VERSION}")
+    CLANKER_VERSION="${PROJECT_VERSION}"
+    CLANKER_PLATFORM="${CLANKER_PLATFORM}"
+    CLANKER_PLATFORM_${CLANKER_PLATFORM_UPPER}=1)
 
 target_compile_options(clanker_cleaner PRIVATE -Wall -Wextra -Wpedantic)
 
 target_link_libraries(clanker_cleaner PRIVATE
-    PkgConfig::GPIOD
+    ${CLANKER_PLATFORM_LIBRARIES}
     spdlog::spdlog
     argparse::argparse
     Threads::Threads)

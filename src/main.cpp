@@ -1,5 +1,3 @@
-#include <gpiod.hpp>
-
 #include <atomic>
 #include <chrono>
 #include <csignal>
@@ -149,7 +147,7 @@ int main(int argumentCount, char** arguments)
     {
         // Pins: the dirty tank sensor pulls LOW when wet, so a falling edge is the trigger.
         GPIO::PinInterface pins;
-        pins.MonitorPin(GPIO::Constants::HIGH_WASTE_WATER_TANK, false);
+        pins.MonitorPin(GPIO::Constants::HIGH_WASTE_WATER_TANK, GPIO::Edge::Falling);
         pins.AddOutputPin(GPIO::Constants::PUMP_RELAY_PIN);
         pins.Start();
         gpioLog->info("started: sensor on line {}, pump relay on line {}",

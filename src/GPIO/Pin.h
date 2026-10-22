@@ -1,10 +1,27 @@
 #pragma once
-#include <gpiod.hpp>
 
 #include <cstdint>
 
+// Platform-neutral pin types. Nothing here may include a platform GPIO library: the
+// platform code lives in <Name>.<Platform>.cpp files, and CMake compiles only the target's.
 namespace ClankerCleaner::GPIO
 {
+    // Collects line settings before the lines are claimed. Each platform defines it in its
+    // own Platform.<Platform>.h, which only that platform's .cpp files include.
+    struct PlatformLineConfig;
+    enum class Edge
+    {
+        Rising,
+        Falling
+    };
+
+    enum class Bias
+    {
+        None,
+        PullUp,
+        PullDown
+    };
+
     // Latest edge seen on an input pin.
     struct PinState
     {
@@ -14,7 +31,7 @@ namespace ClankerCleaner::GPIO
         bool Triggered;
     };
 
-    // A GPIO line on the chip. Subclasses decide how the line is configured (input, output).
+    // A GPIO line, identified by the platform's line number (the BCM GPIO number on a Pi).
     class Pin
     {
     public:
@@ -23,8 +40,8 @@ namespace ClankerCleaner::GPIO
 
         std::uint32_t GetPinId() const { return pinId; }
 
-        // Adds this pin's line settings to a request's config.
-        virtual void Configure(gpiod::line_config& config) const = 0;
+        // Adds this pin's line settings. Defined per platform, e.g. InputPin.RPi.cpp.
+        virtual void Configure(PlatformLineConfig& config) const = 0;
 
     protected:
         Pin(const Pin&) = default;
