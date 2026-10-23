@@ -2,7 +2,8 @@
 
 #include "StateMachine/Flow.h"
 #include "StateMachine/Machine.h"
-#include "GPIO/PinInterface.h" 
+#include "GPIO/PinInterface.h"
+#include "Config/Config.h"
 
 
 namespace ClankerCleaner::Flows::DirtyTank
@@ -12,6 +13,7 @@ namespace ClankerCleaner::Flows::DirtyTank
     public:
         DirtyTankFlow(StateMachine::Machine& machine, std::string name);
 
-        GPIO::PinInterface* pinMonitor;  
+        GPIO::PinInterface* pinMonitor;
+        const Config::Settings* settings = nullptr;
     };
 }

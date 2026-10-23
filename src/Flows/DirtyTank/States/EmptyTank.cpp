@@ -6,13 +6,6 @@
 
 namespace ClankerCleaner::Flows::DirtyTank::States
 {
-    namespace _Priv
-    {
-        // todo: make this configurable
-        //constexpr std::chrono::steady_clock::duration PumpRunTime = std::chrono::minutes(4);
-        constexpr std::chrono::steady_clock::duration PumpRunTime = std::chrono::seconds(10);
-    }
-
     EmptyTank::EmptyTank()
         : StateMachine::State(Constants::State::EMPTY_TANK_STATE)
     {
@@ -22,7 +15,7 @@ namespace ClankerCleaner::Flows::DirtyTank::States
     {
         DirtyTankFlow& dirtyTankFlow = static_cast<DirtyTankFlow&>(flow);
 
-        if(!dirtyTankFlow.pinMonitor->SetOutput(GPIO::Constants::PUMP_RELAY_PIN, true))
+        if(!dirtyTankFlow.pinMonitor->SetOutput(dirtyTankFlow.settings->Gpio.PumpRelayPin, true))
         {
             Logging::Get(flow.GetName())->error("couldn't turn the pump on");
             return Transition::Abort();
@@ -39,9 +32,9 @@ namespace ClankerCleaner::Flows::DirtyTank::States
         DirtyTankFlow& dirtyTankFlow = static_cast<DirtyTankFlow&>(flow);
 
         //todo: add checking the low sensor on the dirty tank once we have one
-        if(pumpStart.time_since_epoch().count() == 0 || std::chrono::steady_clock::now() - pumpStart >= _Priv::PumpRunTime)
+        if(pumpStart.time_since_epoch().count() == 0 || std::chrono::steady_clock::now() - pumpStart >= dirtyTankFlow.settings->DirtyTank.PumpRunTime)
         {
-            GPIO::PinState state = dirtyTankFlow.pinMonitor->GetState(GPIO::Constants::HIGH_WASTE_WATER_TANK);
+            GPIO::PinState state = dirtyTankFlow.pinMonitor->GetState(dirtyTankFlow.settings->Gpio.DirtyTankSensorPin);
             if(state.PinId != 0 && state.Triggered != false)
             {
                 Logging::Get(flow.GetName())->error("dirty tank sensor still wet after {} s", std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - pumpStart).count());
@@ -67,7 +60,7 @@ namespace ClankerCleaner::Flows::DirtyTank::States
     bool EmptyTank::StopPumping(Flow &flow)
     {
         DirtyTankFlow& dirtyTankFlow = static_cast<DirtyTankFlow&>(flow);
-        if(dirtyTankFlow.pinMonitor->SetOutput(GPIO::Constants::PUMP_RELAY_PIN, false))
+        if(dirtyTankFlow.pinMonitor->SetOutput(dirtyTankFlow.settings->Gpio.PumpRelayPin, false))
         {
             const auto ranFor = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - pumpStart);
             Logging::Get(flow.GetName())->info("pump off after {} s", ranFor.count());

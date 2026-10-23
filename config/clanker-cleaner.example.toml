@@ -1,0 +1,21 @@
+# ClankerCleaner settings (Raspberry Pi).
+# Copy to /etc/clanker-cleaner/config.toml, or pass --config <path>.
+# Every key is optional; anything left out uses the built-in default shown here.
+# Command-line options override this file.
+
+[logging]
+# trace, debug, info, warn, err, critical or off
+level = "info"
+# Rotating log file alongside the console; leave out for console only.
+# file = "/var/log/clanker-cleaner/clanker-cleaner.log"
+
+[gpio]
+# Line (BCM GPIO) numbers, not physical header pins.
+dirty_tank_sensor_pin = 22   # header pin 15
+pump_relay_pin = 17          # header pin 11
+# true if the relay board's trigger jumper is on L
+relay_active_low = false
+
+[dirty_tank]
+# How long the pump runs each time the tank is emptied, 1 to 3600.
+pump_run_seconds = 240

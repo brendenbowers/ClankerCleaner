@@ -24,6 +24,8 @@ if(NOT CLANKER_PLATFORM IN_LIST CLANKER_PLATFORMS)
 endif()
 message(STATUS "Platform ${CLANKER_PLATFORM}")
 
+include(FetchContent)
+
 set(CLANKER_PLATFORM_LIBRARIES)
 if(CLANKER_PLATFORM STREQUAL "RPi")
     # libgpiod 2.x C++ bindings (Raspberry Pi OS Trixie), installed by scripts/setup-pi.sh.
@@ -31,12 +33,18 @@ if(CLANKER_PLATFORM STREQUAL "RPi")
     pkg_check_modules(GPIOD REQUIRED IMPORTED_TARGET libgpiodcxx>=2.0)
     message(STATUS "libgpiod ${GPIOD_VERSION}")
     list(APPEND CLANKER_PLATFORM_LIBRARIES PkgConfig::GPIOD)
+
+    # toml++ (header-only) for the config file; only Config.RPi.cpp includes it.
+    FetchContent_Declare(tomlplusplus
+        URL https://github.com/marzer/tomlplusplus/archive/refs/tags/v3.4.0.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+    FetchContent_MakeAvailable(tomlplusplus)
+    list(APPEND CLANKER_PLATFORM_LIBRARIES tomlplusplus::tomlplusplus)
 endif()
 
 find_package(Threads REQUIRED)
 
 # spdlog, downloaded and built by CMake on first configure (cached in build/_deps).
-include(FetchContent)
 FetchContent_Declare(spdlog
     URL https://github.com/gabime/spdlog/archive/refs/tags/v1.15.3.tar.gz
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)

@@ -9,7 +9,11 @@
 #include <thread>
 #include <cstdint>
 
+#include <optional>
+
 #include <argparse/argparse.hpp>
+
+#include "Config/Config.h"
 
 #include "GPIO/PinInterface.h"
 #include "GPIO/Pin.h"
@@ -33,16 +37,28 @@ namespace
         }
     }
 
+    // Values given on the command line; anything set here overrides the config file.
+    struct CommandLine
+    {
+        std::string ConfigPath;
+        std::optional<std::string> LogLevel;
+        std::optional<std::string> LogFile;
+    };
+
     // --help and --version are added by argparse; both print and exit.
-    bool ParseArguments(int argumentCount, char** arguments, ClankerCleaner::Logging::Options& options)
+    bool ParseArguments(int argumentCount, char** arguments, CommandLine& commandLine)
     {
         argparse::ArgumentParser program("clanker_cleaner", CLANKER_VERSION);
         program.add_description("Auto-drain and fill controller for the MOVA P10 Ultra dock.");
-        program.add_epilog("SPDLOG_LEVEL overrides --log-level, per logger too, e.g. SPDLOG_LEVEL=info,DirtyTank=debug");
+        program.add_epilog("Command-line options override the config file. SPDLOG_LEVEL overrides both,\n"
+                           "per logger too, e.g. SPDLOG_LEVEL=info,DirtyTank=debug");
+
+        program.add_argument("--config")
+            .help("settings file (default " + ClankerCleaner::Config::DefaultPath() + ", optional)")
+            .metavar("PATH");
 
         program.add_argument("--log-level")
-            .help("minimum level to log")
-            .default_value(options.Level)
+            .help("minimum level to log (default info)")
             .choices("trace", "debug", "info", "warn", "err", "critical", "off")
             .nargs(1)
             .metavar("LEVEL");
@@ -61,11 +77,9 @@ namespace
             return false;
         }
 
-        options.Level = program.get<std::string>("--log-level");
-        if (auto filePath = program.present("--log-file"))
-        {
-            options.FilePath = *filePath;
-        }
+        commandLine.ConfigPath = program.present("--config").value_or("");
+        commandLine.LogLevel = program.present("--log-level");
+        commandLine.LogFile = program.present("--log-file");
         return true;
     }
 
@@ -119,14 +133,38 @@ int main(int argumentCount, char** arguments)
     namespace StateMachine = ClankerCleaner::StateMachine;
     namespace DirtyTank = ClankerCleaner::Flows::DirtyTank;
 
-    Logging::Options logOptions;
-    if (!ParseArguments(argumentCount, arguments, logOptions))
+    CommandLine commandLine;
+    if (!ParseArguments(argumentCount, arguments, commandLine))
     {
         return EXIT_FAILURE;
     }
 
+    // An explicit --config must exist; the default path is optional.
+    namespace Config = ClankerCleaner::Config;
+    Config::Settings settings;
     try
     {
+        settings = Config::Load(commandLine.ConfigPath, !commandLine.ConfigPath.empty());
+    }
+    catch (const std::exception& error)
+    {
+        std::cerr << "Config error: " << error.what() << '\n';
+        return EXIT_FAILURE;
+    }
+    if (commandLine.LogLevel)
+    {
+        settings.Log.Level = *commandLine.LogLevel;
+    }
+    if (commandLine.LogFile)
+    {
+        settings.Log.FilePath = *commandLine.LogFile;
+    }
+
+    try
+    {
+        Logging::Options logOptions;
+        logOptions.Level = settings.Log.Level;
+        logOptions.FilePath = settings.Log.FilePath;
         Logging::Initialize(logOptions);
     }
     catch (const std::exception& error)
@@ -141,22 +179,27 @@ int main(int argumentCount, char** arguments)
     auto log = Logging::Get("Main");
     auto gpioLog = Logging::Get("GPIO");
     int exitCode = EXIT_SUCCESS;
-    log->info("ClankerCleaner {} starting", CLANKER_VERSION);
+    log->info("ClankerCleaner {} starting on {}", CLANKER_VERSION, CLANKER_PLATFORM);
+    log->info("config: {}, pump run time {} s",
+              commandLine.ConfigPath.empty() ? Config::DefaultPath() + " (if present)" : commandLine.ConfigPath,
+              settings.DirtyTank.PumpRunTime.count());
 
     try
     {
         // Pins: the dirty tank sensor pulls LOW when wet, so a falling edge is the trigger.
         GPIO::PinInterface pins;
-        pins.MonitorPin(GPIO::Constants::HIGH_WASTE_WATER_TANK, GPIO::Edge::Falling);
-        pins.AddOutputPin(GPIO::Constants::PUMP_RELAY_PIN);
+        pins.MonitorPin(settings.Gpio.DirtyTankSensorPin, GPIO::Edge::Falling);
+        pins.AddOutputPin(settings.Gpio.PumpRelayPin, settings.Gpio.RelayActiveLow);
         pins.Start();
-        gpioLog->info("started: sensor on line {}, pump relay on line {}",
-                      GPIO::Constants::HIGH_WASTE_WATER_TANK, GPIO::Constants::PUMP_RELAY_PIN);
+        gpioLog->info("started: sensor on line {}, pump relay on line {}{}",
+                      settings.Gpio.DirtyTankSensorPin, settings.Gpio.PumpRelayPin,
+                      settings.Gpio.RelayActiveLow ? " (active low)" : "");
 
         // Flows: Idle waits for the sensor, EmptyTank runs the pump, then back to Idle.
         StateMachine::Machine machine;
         DirtyTank::DirtyTankFlow& dirtyTankFlow = machine.AddFlow<DirtyTank::DirtyTankFlow>("DirtyTank");
         dirtyTankFlow.pinMonitor = &pins;
+        dirtyTankFlow.settings = &settings;
         dirtyTankFlow.AddState<DirtyTank::States::Idle>();
         dirtyTankFlow.AddState<DirtyTank::States::EmptyTank>();
         dirtyTankFlow.SetLooping(true);
