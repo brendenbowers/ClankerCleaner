@@ -31,6 +31,8 @@ namespace ClankerCleaner::Config
     struct DirtyTankSettings
     {
         std::chrono::seconds PumpRunTime{240};
+        // How long the sensor must hold a new reading before Idle acts on it.
+        std::chrono::seconds SensorDebounce{20};
     };
 
     struct Settings

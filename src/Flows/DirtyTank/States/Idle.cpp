@@ -28,7 +28,7 @@ namespace ClankerCleaner::Flows::DirtyTank::States
             return Transition::Stay();
         }
 
-        std::uint64_t debounceTime = (std::chrono::steady_clock::now() - std::chrono::seconds(20))
+        std::uint64_t debounceTime = (std::chrono::steady_clock::now() -  dirtyTankFlow.settings->DirtyTank.SensorDebounce)
             .time_since_epoch()
             .count();
         if(it->ChangedNS > debounceTime)

@@ -21,6 +21,7 @@ namespace ClankerCleaner::Config
         // Header GPIOs on a Pi are lines 0 to 27.
         constexpr std::int64_t MaxPinLine = 27;
         constexpr std::int64_t MaxPumpRunSeconds = 60 * 60;
+        constexpr std::int64_t MaxSensorDebounceSeconds = 10 * 60;
         constexpr std::array LogLevels{"trace", "debug", "info", "warn", "err", "critical", "off"};
 
         class SettingsReader
@@ -149,6 +150,8 @@ namespace ClankerCleaner::Config
 
         settings.DirtyTank.PumpRunTime = std::chrono::seconds(
             reader.ReadInteger("dirty_tank.pump_run_seconds", settings.DirtyTank.PumpRunTime.count(), 1, MaxPumpRunSeconds));
+        settings.DirtyTank.SensorDebounce = std::chrono::seconds(
+            reader.ReadInteger("dirty_tank.sensor_debounce_seconds", settings.DirtyTank.SensorDebounce.count(), 0, MaxSensorDebounceSeconds));
 
         return settings;
     }

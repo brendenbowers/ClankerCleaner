@@ -19,3 +19,6 @@ relay_active_low = false
 [dirty_tank]
 # How long the pump runs each time the tank is emptied, 1 to 3600.
 pump_run_seconds = 240
+# How long the sensor must hold a new reading before it's acted on, 0 to 600.
+# Stops water sloshing past the sensor from starting the pump.
+sensor_debounce_seconds = 20

@@ -11,6 +11,7 @@ namespace ClankerCleaner::Config
         constexpr std::uint32_t PumpRelayPin = 17;
         constexpr bool RelayActiveLow = false;
         constexpr std::chrono::seconds PumpRunTime{240};
+        constexpr std::chrono::seconds SensorDebounce{20};
     }
 
     std::string DefaultPath()
@@ -26,6 +27,7 @@ namespace ClankerCleaner::Config
         settings.Gpio.PumpRelayPin = PumpRelayPin;
         settings.Gpio.RelayActiveLow = RelayActiveLow;
         settings.DirtyTank.PumpRunTime = PumpRunTime;
+        settings.DirtyTank.SensorDebounce = SensorDebounce;
         return settings;
     }
 }

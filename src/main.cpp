@@ -180,9 +180,9 @@ int main(int argumentCount, char** arguments)
     auto gpioLog = Logging::Get("GPIO");
     int exitCode = EXIT_SUCCESS;
     log->info("ClankerCleaner {} starting on {}", CLANKER_VERSION, CLANKER_PLATFORM);
-    log->info("config: {}, pump run time {} s",
+    log->info("config: {}, pump run time {} s, sensor debounce {} s",
               commandLine.ConfigPath.empty() ? Config::DefaultPath() + " (if present)" : commandLine.ConfigPath,
-              settings.DirtyTank.PumpRunTime.count());
+              settings.DirtyTank.PumpRunTime.count(), settings.DirtyTank.SensorDebounce.count());
 
     try
     {
