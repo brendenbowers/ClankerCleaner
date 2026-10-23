@@ -21,9 +21,19 @@ namespace ClankerCleaner::Flows::DirtyTank::States
         std::vector<GPIO::PinState> changedPins = dirtyTankFlow.pinMonitor->GetSince(lastEvent + 1);
 
         const std::uint32_t sensorPin = dirtyTankFlow.settings->Gpio.DirtyTankSensorPin;
-        auto it = std::find_if(changedPins.begin(), changedPins.end(), [sensorPin](GPIO::PinState pinState) { return pinState.PinId == sensorPin; });
+        auto it = std::find_if(changedPins.begin(), changedPins.end(), 
+            [sensorPin](GPIO::PinState pinState) { return pinState.PinId == sensorPin; });
         if(it == changedPins.end())
         {
+            return Transition::Stay();
+        }
+
+        std::uint64_t debounceTime = (std::chrono::steady_clock::now() - std::chrono::seconds(20))
+            .time_since_epoch()
+            .count();
+        if(it->ChangedNS > debounceTime)
+        {
+            // delay a bit to avoid false triggers from the sensor bouncing
             return Transition::Stay();
         }
 
