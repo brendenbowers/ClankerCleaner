@@ -124,6 +124,7 @@ namespace ClankerCleaner::StateMachine
             currentState = FindState(initialStateName);
             beginPending = true;
             beginReported = false;
+            context.reset();
             {
                 std::lock_guard<std::mutex> lock(statusMutex);
                 lastError.clear();
@@ -152,15 +153,19 @@ namespace ClankerCleaner::StateMachine
                 {
                 case Transition::Kind::Stay:
                     return;
-
                 case Transition::Kind::Next:
                     beginPending = false;
+                    // Begin can hand its own Run a context; without one, Run sees the incoming one.
+                    if (begun.context.has_value())
+                    {
+                        context = std::move(begun.context);
+                    }
                     EnterPhase(*currentState, StatePhase::Running);
                     break;
 
                 default:
                     beginPending = false;
-                    ApplyTransition(begun);
+                    ApplyTransition(std::move(begun));
                     return;
                 }
             }
@@ -207,7 +212,7 @@ namespace ClankerCleaner::StateMachine
         return looping ? FindState(initialStateName) : nullptr;
     }
 
-    void Flow::ApplyTransition(const Transition& transition)
+    void Flow::ApplyTransition(Transition transition)
     {
         switch (transition.GetKind())
         {
@@ -215,15 +220,18 @@ namespace ClankerCleaner::StateMachine
             return;
 
         case Transition::Kind::Abort:
+            // Set after Abort() so the aborted state still sees the context it was entered with.
             AbortCurrentState();
+            context = std::move(transition.context);
             return;
 
         case Transition::Kind::Finish:
-            MoveTo(nullptr);
+            MoveTo(nullptr, std::move(transition.context));
             return;
 
+        case Transition::Kind::Skip:
         case Transition::Kind::Next:
-            MoveTo(ResolveNext(*currentState));
+            MoveTo(ResolveNext(*currentState), std::move(transition.context));
             return;
 
         case Transition::Kind::GoTo:
@@ -233,15 +241,15 @@ namespace ClankerCleaner::StateMachine
             {
                 throw std::logic_error("unknown state '" + transition.GetTarget() + "'");
             }
-            MoveTo(nextState);
+            MoveTo(nextState, std::move(transition.context));
             return;
         }
         }
     }
 
-    // Ends the current state and either begins nextState or, for nullptr, finishes the flow.
-    // A failed End aborts the flow instead.
-    void Flow::MoveTo(State* nextState)
+    // Ends the current state and either begins nextState with nextContext or, for nullptr,
+    // finishes the flow. A failed End aborts the flow instead.
+    void Flow::MoveTo(State* nextState, std::any nextContext)
     {
         EnterPhase(*currentState, StatePhase::End);
         if (!currentState->End(*this))
@@ -254,6 +262,8 @@ namespace ClankerCleaner::StateMachine
             return;
         }
 
+        // Replaced even when empty, so a state never sees a context meant for an earlier one.
+        context = std::move(nextContext);
         if (!nextState)
         {
             currentState = nullptr;

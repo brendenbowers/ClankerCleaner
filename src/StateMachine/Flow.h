@@ -1,5 +1,6 @@
 #pragma once
 
+#include <any>
 #include <atomic>
 #include <functional>
 #include <map>
@@ -79,6 +80,15 @@ namespace ClankerCleaner::StateMachine
         StatePhase GetCurrentPhase() const;
         std::string GetLastError() const;
 
+        // The context from the transition into the current state; nullptr if there was none
+        // or it isn't a TContext. Machine thread (states) only. After Finish or Abort it holds
+        // that transition's context until the flow starts again.
+        template <typename TContext>
+        TContext* GetContext() { return std::any_cast<TContext>(&context); }
+        template <typename TContext>
+        const TContext* GetContext() const { return std::any_cast<TContext>(&context); }
+        bool HasContext() const { return context.has_value(); }
+
     private:
         friend class Machine;
 
@@ -86,8 +96,8 @@ namespace ClankerCleaner::StateMachine
         void Step();
         State* FindState(std::string_view stateName) const;
         State* ResolveNext(const State& fromState) const;
-        void ApplyTransition(const Transition& transition);
-        void MoveTo(State* nextState);
+        void ApplyTransition(Transition transition);
+        void MoveTo(State* nextState, std::any nextContext);
         void EnterPhase(State& state, StatePhase phase);
         void AbortCurrentState();
         void SetStatus(FlowStatus newStatus);
@@ -109,6 +119,7 @@ namespace ClankerCleaner::StateMachine
         State* currentState = nullptr;
         bool beginPending = false;
         bool beginReported = false;
+        std::any context;
 
         mutable std::mutex statusMutex;
         FlowStatus status = FlowStatus::Idle;
