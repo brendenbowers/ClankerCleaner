@@ -45,6 +45,20 @@ namespace ClankerCleaner::Dreame
         // The device's MQTT host, e.g. "10000.mt.us.iot.mova-tech.com:19974"; its first label
         // picks the command endpoint.
         std::string BindDomain;
+        // The device owner's user ID; part of the push topic.
+        std::string MasterUid;
+    };
+
+    // Where and how to subscribe for pushed property changes, as the app does over MQTT.
+    // Password is the access token, so don't log it.
+    struct PushChannel
+    {
+        std::string Host;
+        int Port = 0;
+        std::string ClientId;
+        std::string Username;
+        std::string Password;
+        std::string Topic;
     };
 
     class CloudError : public std::runtime_error
@@ -89,6 +103,10 @@ namespace ClankerCleaner::Dreame
         // aren't whole numbers, are left out of the result.
         std::map<PropertyId, std::int64_t> GetProperties(const std::vector<PropertyId>& properties);
 
+        // The selected device's push channel, with the current access token (refreshed first
+        // if it's close to expiring). Throws CloudError if the device has no MQTT host.
+        PushChannel GetPushChannel();
+
     private:
         // Logs in when there's no session or the access token expires within ten minutes.
         void EnsureSession();
@@ -107,6 +125,7 @@ namespace ClankerCleaner::Dreame
         std::string accessToken;
         std::string refreshToken;
         std::chrono::steady_clock::time_point accessTokenExpiry{};
+        std::string userId;
         std::string tenantId;
         std::string region;
         std::string language;

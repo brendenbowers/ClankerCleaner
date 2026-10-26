@@ -173,6 +173,7 @@ namespace ClankerCleaner::Dreame
             accessToken = token;
             refreshToken = TextOf(data, "refresh_token");
             accessTokenExpiry = std::chrono::steady_clock::now() + std::chrono::seconds(NumberOf(data, "expires_in", 3600));
+            userId = TextOf(data, "uid", userId);
             tenantId = TextOf(data, "tenant_id", tenantId);
             region = TextOf(data, "region", region);
             language = TextOf(data, "lang", language);
@@ -274,6 +275,7 @@ namespace ClankerCleaner::Dreame
             device.Id = TextOf(record, "did");
             device.Model = TextOf(record, "model");
             device.BindDomain = TextOf(record, "bindDomain");
+            device.MasterUid = TextOf(record, "masterUid");
             device.Name = TextOf(record, "customName");
             if (device.Name.empty() && record.contains("deviceInfo"))
             {
@@ -373,5 +375,31 @@ namespace ClankerCleaner::Dreame
             values[property] = value.is_boolean() ? (value.get<bool>() ? 1 : 0) : value.get<std::int64_t>();
         }
         return values;
+    }
+
+    PushChannel CloudClient::GetPushChannel()
+    {
+        EnsureSession();
+        if (!selectedDevice)
+        {
+            SelectDevice();
+        }
+        const DeviceInfo& device = *selectedDevice;
+        const std::size_t portSeparator = device.BindDomain.rfind(':');
+        if (portSeparator == std::string::npos)
+        {
+            throw CloudError("device has no MQTT host (bindDomain '" + device.BindDomain + "')");
+        }
+
+        PushChannel channel;
+        channel.Host = device.BindDomain.substr(0, portSeparator);
+        channel.Port = std::stoi(device.BindDomain.substr(portSeparator + 1));
+        // Same client ID shape as the integration: "p_" + md5(did + "mqtt" + visitor hash).
+        channel.ClientId = "p_" + Crypto::Md5Hex(device.Id + "mqtt" + visitorHash);
+        channel.Username = userId;
+        channel.Password = accessToken;
+        channel.Topic = "/status/" + device.Id + "/" + (device.MasterUid.empty() ? userId : device.MasterUid) + "/" + device.Model +
+                        "/" + options.Country + "/";
+        return channel;
     }
 }

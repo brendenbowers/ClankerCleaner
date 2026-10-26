@@ -51,7 +51,8 @@ if(CLANKER_PLATFORM STREQUAL "RPi")
         DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
     FetchContent_MakeAvailable(httplib)
     find_package(OpenSSL REQUIRED)
-    list(APPEND CLANKER_PLATFORM_LIBRARIES httplib::httplib OpenSSL::Crypto)
+    # TlsStream.RPi.cpp (MQTT push) uses OpenSSL directly.
+    list(APPEND CLANKER_PLATFORM_LIBRARIES httplib::httplib OpenSSL::SSL OpenSSL::Crypto)
 endif()
 
 find_package(Threads REQUIRED)

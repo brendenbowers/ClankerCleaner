@@ -2,6 +2,7 @@
 
 Raspberry Pi controller for the MOVA P10 Ultra dock: drains the dirty-water tank, and later rinses it and refills the clean tank.
 Wiring, parts and the control sequence: https://claude.ai/artifact/6QadxvJVBZY98JZLe1RgQR
+Dock cloud properties and what they mean: [docs/DockProperties.md](docs/DockProperties.md)
 
 You edit on Windows in VS Code. Each build copies only the files changed since the last sync to the Pi (`scripts/sync-to-pi.cmd`, tracked by `.cache/last-sync`), then compiles there with CMake. Running and debugging happen on the Pi; the debugger maps back to your local files.
 

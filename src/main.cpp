@@ -168,7 +168,7 @@ namespace
         options.Country = settings.Country;
         options.Device = settings.Device;
 
-        auto monitor = std::make_unique<Dreame::DockMonitor>(std::move(options), settings.PollInterval);
+        auto monitor = std::make_unique<Dreame::DockMonitor>(std::move(options), settings.PollInterval, settings.Push);
         // Wake the flows so states see the new status straight away.
         monitor->SetChangeListener([&machine](const Dreame::DockStatus& previous, const Dreame::DockStatus& current)
         {

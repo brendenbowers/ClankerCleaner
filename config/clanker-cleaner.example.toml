@@ -38,3 +38,6 @@ country = "us"
 device = ""
 # How often to poll, 10 to 3600.
 poll_seconds = 30
+# Get changes pushed the way the app does (MQTT); polling drops to every 5 minutes while
+# pushes arrive. Turn off if the push connection misbehaves.
+push = true

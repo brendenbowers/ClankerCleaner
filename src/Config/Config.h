@@ -49,6 +49,8 @@ namespace ClankerCleaner::Config
         // Device ID or name; empty uses the first robot vacuum on the account.
         std::string Device;
         std::chrono::seconds PollInterval{30};
+        // Subscribe to the app's MQTT push updates; polling slows down while they arrive.
+        bool Push = true;
     };
 
     struct Settings

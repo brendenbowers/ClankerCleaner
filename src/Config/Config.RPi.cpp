@@ -177,6 +177,7 @@ namespace ClankerCleaner::Config
         dreame.Device = reader.ReadString("dreame.device", dreame.Device);
         dreame.PollInterval = std::chrono::seconds(
             reader.ReadInteger("dreame.poll_seconds", dreame.PollInterval.count(), MinPollSeconds, MaxPollSeconds));
+        dreame.Push = reader.ReadBool("dreame.push", dreame.Push);
         if(dreame.Enabled && (dreame.Username.empty() || dreame.Password.empty()))
         {
             throw std::runtime_error(std::format("{}: dreame.enabled is true but dreame.username or dreame.password is empty", filePath));

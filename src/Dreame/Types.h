@@ -6,7 +6,8 @@
 #include <string>
 
 // Values the Dreame/MOVA cloud reports for a robot and its base station. Property IDs and
-// values come from the Tasshack/dreame-vacuum integration (dreame/types.py). Values a model
+// values come from the Tasshack/dreame-vacuum integration (dreame/types.py), checked against
+// the MOVAhome robot plugin (dreame.vacuum.common 1239). Values a model
 // adds later still fit in the enums; ToString prints them as numbers.
 namespace ClankerCleaner::Dreame
 {
@@ -29,6 +30,7 @@ namespace ClankerCleaner::Dreame
         constexpr PropertyId LowWaterWarning{4, 41};
         constexpr PropertyId CleanWaterTank{27, 1};
         constexpr PropertyId DirtyWaterTank{27, 2};
+        constexpr PropertyId DetergentTank{27, 4};
     }
 
     // What the robot is doing (2.1), the most detailed of the three robot properties.
@@ -73,6 +75,9 @@ namespace ClankerCleaner::Dreame
         DustBagDryingPaused = 36,
         HeadingToExtraCleaning = 37,
         ExtraCleaning = 38,
+        ShortcutRunning = 97,
+        CameraMonitoring = 98,
+        CameraMonitoringPaused = 99,
     };
 
     // Coarser robot status (4.1).
@@ -173,16 +178,27 @@ namespace ClankerCleaner::Dreame
         NotInstalledOrFull = 1,
     };
 
+    // Clean water tank warnings (4.41), as the app words them. The robot raises one and it
+    // stays until the app dismisses it, so it can outlive a refill.
     enum class LowWaterWarning : std::int32_t
     {
         Unknown = -1,
         NoWarning = 0,
-        NoWaterLeftDismiss = 1,
-        NoWaterLeft = 2,
-        NoWaterLeftAfterClean = 3,
-        NoWaterForClean = 4,
-        LowWater = 5,
+        CheckCleanTank = 1,
+        ShortAfterMopWash = 2,
+        CheckTankAndShortAfterMopWash = 3,
+        SwitchedToVacuuming = 4,
+        NearlyEmpty = 5,
         TankNotInstalled = 6,
+    };
+
+    // The cleaning fluid (auto-detergent) compartment (27.4).
+    enum class DetergentTank : std::int32_t
+    {
+        Unknown = -1,
+        Ok = 0,
+        EmptyOrNotInstalled = 1,
+        Low = 2,
     };
 
     // Error codes (2.2) that matter here; 0 is no error.
@@ -212,6 +228,7 @@ namespace ClankerCleaner::Dreame
         CleanWaterTank CleanTank = CleanWaterTank::Unknown;
         DirtyWaterTank DirtyTank = DirtyWaterTank::Unknown;
         LowWaterWarning LowWater = LowWaterWarning::Unknown;
+        DetergentTank Detergent = DetergentTank::Unknown;
         std::int32_t ErrorCode = -1;
 
         // A cleaning job is under way, including returns to the dock to wash mops mid-job.
@@ -235,6 +252,7 @@ namespace ClankerCleaner::Dreame
     std::string ToString(CleanWaterTank value);
     std::string ToString(DirtyWaterTank value);
     std::string ToString(LowWaterWarning value);
+    std::string ToString(DetergentTank value);
 
     // One line for the log, e.g. "robot charging, task completed, base idle, clean tank ok, ...".
     std::string Describe(const DockStatus& status);

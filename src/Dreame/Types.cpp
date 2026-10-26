@@ -64,9 +64,9 @@ namespace ClankerCleaner::Dreame
     bool DockStatus::IsCleanTankEmpty() const
     {
         return CleanTank == CleanWaterTank::LowWater ||
-               IsOneOf(LowWater, {LowWaterWarning::NoWaterLeftDismiss, LowWaterWarning::NoWaterLeft,
-                                  LowWaterWarning::NoWaterLeftAfterClean, LowWaterWarning::NoWaterForClean,
-                                  LowWaterWarning::LowWater}) ||
+               IsOneOf(LowWater, {LowWaterWarning::CheckCleanTank, LowWaterWarning::ShortAfterMopWash,
+                                  LowWaterWarning::CheckTankAndShortAfterMopWash,
+                                  LowWaterWarning::SwitchedToVacuuming, LowWaterWarning::NearlyEmpty}) ||
                IsOneOf(ErrorCode, {ErrorCodes::WaterBoxEmpty, ErrorCodes::WaterTankDry, ErrorCodes::CleanTankLevel});
     }
 
@@ -81,7 +81,7 @@ namespace ClankerCleaner::Dreame
     {
         return Online == other.Online && Robot == other.Robot && Status == other.Status && Task == other.Task &&
                Base == other.Base && CleanTank == other.CleanTank && DirtyTank == other.DirtyTank &&
-               LowWater == other.LowWater && ErrorCode == other.ErrorCode;
+               LowWater == other.LowWater && Detergent == other.Detergent && ErrorCode == other.ErrorCode;
     }
 
     std::string ToString(RobotState value)
@@ -106,7 +106,9 @@ namespace ClankerCleaner::Dreame
             {RobotState::AutoWaterDraining, "auto water draining"}, {RobotState::Emptying, "emptying"},
             {RobotState::DustBagDrying, "dust bag drying"}, {RobotState::DustBagDryingPaused, "dust bag drying paused"},
             {RobotState::HeadingToExtraCleaning, "heading to extra cleaning"},
-            {RobotState::ExtraCleaning, "extra cleaning"},
+            {RobotState::ExtraCleaning, "extra cleaning"}, {RobotState::ShortcutRunning, "running shortcut"},
+            {RobotState::CameraMonitoring, "camera monitoring"},
+            {RobotState::CameraMonitoringPaused, "camera monitoring paused"},
         });
     }
 
@@ -188,11 +190,20 @@ namespace ClankerCleaner::Dreame
     {
         return LookUp<LowWaterWarning>(value, {
             {LowWaterWarning::Unknown, "unknown"}, {LowWaterWarning::NoWarning, "none"},
-            {LowWaterWarning::NoWaterLeftDismiss, "no water left (dismissed)"},
-            {LowWaterWarning::NoWaterLeft, "no water left"},
-            {LowWaterWarning::NoWaterLeftAfterClean, "no water left after clean"},
-            {LowWaterWarning::NoWaterForClean, "no water for clean"}, {LowWaterWarning::LowWater, "low water"},
+            {LowWaterWarning::CheckCleanTank, "check clean tank"},
+            {LowWaterWarning::ShortAfterMopWash, "short of water after mop wash"},
+            {LowWaterWarning::CheckTankAndShortAfterMopWash, "check clean tank, short after mop wash"},
+            {LowWaterWarning::SwitchedToVacuuming, "out of water, vacuuming only"},
+            {LowWaterWarning::NearlyEmpty, "nearly out of water"},
             {LowWaterWarning::TankNotInstalled, "tank not installed"},
+        });
+    }
+
+    std::string ToString(DetergentTank value)
+    {
+        return LookUp<DetergentTank>(value, {
+            {DetergentTank::Unknown, "unknown"}, {DetergentTank::Ok, "ok"},
+            {DetergentTank::EmptyOrNotInstalled, "empty or not installed"}, {DetergentTank::Low, "low"},
         });
     }
 
@@ -202,10 +213,11 @@ namespace ClankerCleaner::Dreame
         {
             return "no data yet";
         }
-        return std::format("{}robot {} ({}), task {}, base {}, clean tank {}, dirty tank {}, low water {}, error {}",
+        return std::format("{}robot {} ({}), task {}, base {}, clean tank {}, dirty tank {}, water warning {}, "
+                           "cleaning fluid {}, error {}",
                            status.Online ? "" : "offline, last seen: ", ToString(status.Robot),
                            ToString(status.Status), ToString(status.Task), ToString(status.Base),
                            ToString(status.CleanTank), ToString(status.DirtyTank), ToString(status.LowWater),
-                           status.ErrorCode);
+                           ToString(status.Detergent), status.ErrorCode);
     }
 }
