@@ -6,6 +6,7 @@ namespace ClankerCleaner::Flows::DirtyTank::Constants
     {
         constexpr const char* IDLE_STATE = "DIRTY_TANK_IDLE";
         constexpr const char* EMPTY_TANK_STATE = "DIRTY_TANK_EMPTY";
+        constexpr const char* RINSE_TANK_STATE = "RINSE_DIRTY_TANK";
 
     }
 }

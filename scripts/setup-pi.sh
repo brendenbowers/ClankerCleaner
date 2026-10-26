@@ -10,7 +10,10 @@ sudo apt-get install -y \
     pkg-config \
     gdb \
     libgpiod-dev \
-    gpiod
+    gpiod \
+    libssl-dev \
+    zlib1g-dev \
+    ca-certificates
 
 # GPIO access without sudo.
 if ! id -nG "$USER" | grep -qw gpio; then
@@ -21,5 +24,6 @@ fi
 echo
 echo "cmake:    $(cmake --version | head -n1)"
 echo "gcc:      $(gcc --version | head -n1)"
-echo "libgpiod: $(pkg-config --modversion libgpiodcxx)"echo "GPIO chips:"
+echo "libgpiod: $(pkg-config --modversion libgpiodcxx)"
+echo "GPIO chips:"
 gpiodetect

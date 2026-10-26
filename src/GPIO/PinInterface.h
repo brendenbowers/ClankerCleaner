@@ -49,6 +49,9 @@ namespace ClankerCleaner::GPIO
         std::vector<PinState> GetSince(std::uint64_t changedNS);
         PinState GetState(std::uint32_t pinId);
 
+        const std::map<std::uint32_t, InputPin> GetInputPins() { return monitoredPins; }
+        const std::map<std::uint32_t, OutputPin> GetOutputPins() { return outputPins; }
+
     private:
         // Platform hooks, defined in PinInterface.<Platform>.cpp.
         struct PlatformState;

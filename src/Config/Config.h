@@ -24,6 +24,7 @@ namespace ClankerCleaner::Config
         // Line (BCM GPIO) numbers, not physical header pins.
         std::uint32_t DirtyTankSensorPin = GPIO::Constants::HIGH_WASTE_WATER_TANK;
         std::uint32_t PumpRelayPin = GPIO::Constants::PUMP_RELAY_PIN;
+        std::uint32_t DirtyTankRinseRelayPin = GPIO::Constants::DIRTY_TANK_RINSE_RELAY_PIN;
         // True for a relay board with its trigger jumper on L.
         bool RelayActiveLow = false;
     };
@@ -35,11 +36,27 @@ namespace ClankerCleaner::Config
         std::chrono::seconds SensorDebounce{20};
     };
 
+    // Polling the robot and dock through the MovaHome/DreameHome cloud account.
+    struct DreameSettings
+    {
+        bool Enabled = false;
+        // "mova" for a MovaHome account, "dreame" for DreameHome.
+        std::string Account = "mova";
+        std::string Username;
+        std::string Password;
+        // Server region as chosen in the app, e.g. "us", "eu", "cn".
+        std::string Country = "us";
+        // Device ID or name; empty uses the first robot vacuum on the account.
+        std::string Device;
+        std::chrono::seconds PollInterval{30};
+    };
+
     struct Settings
     {
         LogSettings Log;
         GpioSettings Gpio;
         DirtyTankSettings DirtyTank;
+        DreameSettings Dreame;
     };
 
     // Where this platform looks for its config file; empty if it has none.

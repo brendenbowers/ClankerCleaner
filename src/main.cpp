@@ -9,11 +9,13 @@
 #include <thread>
 #include <cstdint>
 
+#include <memory>
 #include <optional>
 
 #include <argparse/argparse.hpp>
 
 #include "Config/Config.h"
+#include "Dreame/DockMonitor.h"
 
 #include "GPIO/PinInterface.h"
 #include "GPIO/Pin.h"
@@ -123,15 +125,106 @@ namespace
             }
         });
     }
+
+    // Logs the new state on every change, plus a line of its own when the things the
+    // flows care about flip.
+    void LogDockChange(const ClankerCleaner::Dreame::DockStatus& previous, const ClankerCleaner::Dreame::DockStatus& current)
+    {
+        auto dockLogger = ClankerCleaner::Logging::Get("Dock");
+        dockLogger->info("{}", ClankerCleaner::Dreame::Describe(current));
+        if (!current.Online)
+        {
+            return;
+        }
+        if (current.IsDirtyTankFull() != previous.IsDirtyTankFull())
+        {
+            dockLogger->warn("{}", current.IsDirtyTankFull() ? "dock reports the dirty tank full (or removed)" : "dock reports the dirty tank ok");
+        }
+        if (current.IsCleanTankEmpty() != previous.IsCleanTankEmpty())
+        {
+            dockLogger->warn("{}", current.IsCleanTankEmpty() ? "dock reports the clean tank empty" : "dock reports the clean tank ok");
+        }
+        if (current.IsRobotCleaning() != previous.IsRobotCleaning())
+        {
+            dockLogger->info("{}", current.IsRobotCleaning() ? "robot started cleaning" : "robot stopped cleaning");
+        }
+    }
+
+    std::unique_ptr<ClankerCleaner::Dreame::DockMonitor> CreateDockMonitor(const ClankerCleaner::Config::DreameSettings& settings,
+                                                                           ClankerCleaner::StateMachine::Machine& machine)
+    {
+        namespace Dreame = ClankerCleaner::Dreame;
+
+        if (!settings.Enabled)
+        {
+            ClankerCleaner::Logging::Get("Dock")->info("cloud polling off ([dreame] enabled = false)");
+            return nullptr;
+        }
+
+        Dreame::CloudOptions options;
+        options.Account = settings.Account == "dreame" ? Dreame::AccountType::Dreame : Dreame::AccountType::Mova;
+        options.Username = settings.Username;
+        options.Password = settings.Password;
+        options.Country = settings.Country;
+        options.Device = settings.Device;
+
+        auto monitor = std::make_unique<Dreame::DockMonitor>(std::move(options), settings.PollInterval);
+        // Wake the flows so states see the new status straight away.
+        monitor->SetChangeListener([&machine](const Dreame::DockStatus& previous, const Dreame::DockStatus& current)
+        {
+            LogDockChange(previous, current);
+            machine.Wake();
+        });
+        return monitor;
+    }
 }
 
 
-int main(int argumentCount, char** arguments)
+void ConfigurePins(ClankerCleaner::GPIO::PinInterface& pins, ClankerCleaner::Config::Settings& settings)
 {
     namespace GPIO = ClankerCleaner::GPIO;
     namespace Logging = ClankerCleaner::Logging;
+
+    auto gpioLog = Logging::Get("GPIO");
+
+    pins.MonitorPin(settings.Gpio.DirtyTankSensorPin, GPIO::Edge::Falling);
+    pins.AddOutputPin(settings.Gpio.PumpRelayPin, settings.Gpio.RelayActiveLow);
+    pins.AddOutputPin(settings.Gpio.DirtyTankRinseRelayPin, settings.Gpio.RelayActiveLow);
+    pins.Start();
+
+    for (const auto& [id, pin] : pins.GetInputPins())
+    {
+        gpioLog->info("Monitoring Pin {}", id);
+    }
+
+    for (const auto& [id, pin] : pins.GetOutputPins())
+    {
+        gpioLog->info("Output Pin {}", id);
+    }
+}
+
+void ConfigureFlows(ClankerCleaner::StateMachine::Machine& machine, ClankerCleaner::GPIO::PinInterface& pins, ClankerCleaner::Config::Settings& settings,
+                    const ClankerCleaner::Dreame::DockMonitor* dockMonitor)
+{
     namespace StateMachine = ClankerCleaner::StateMachine;
     namespace DirtyTank = ClankerCleaner::Flows::DirtyTank;
+
+    DirtyTank::DirtyTankFlow& dirtyTankFlow = machine.AddFlow<DirtyTank::DirtyTankFlow>(DirtyTank::FLOWNAME);
+    dirtyTankFlow.pinMonitor = &pins;
+    dirtyTankFlow.settings = &settings;
+    dirtyTankFlow.dockMonitor = dockMonitor;
+    dirtyTankFlow.AddState<DirtyTank::States::Idle>();
+    dirtyTankFlow.AddState<DirtyTank::States::EmptyTank>();
+    dirtyTankFlow.SetLooping(true);
+    LogPhases(dirtyTankFlow);
+}
+
+int main(int argumentCount, char** arguments)
+{
+
+    namespace GPIO = ClankerCleaner::GPIO;
+    namespace StateMachine = ClankerCleaner::StateMachine;
+    namespace Logging = ClankerCleaner::Logging;
 
     CommandLine commandLine;
     if (!ParseArguments(argumentCount, arguments, commandLine))
@@ -177,7 +270,6 @@ int main(int argumentCount, char** arguments)
     std::signal(SIGTERM, signal_handler);
 
     auto log = Logging::Get("Main");
-    auto gpioLog = Logging::Get("GPIO");
     int exitCode = EXIT_SUCCESS;
     log->info("ClankerCleaner {} starting on {}", CLANKER_VERSION, CLANKER_PLATFORM);
     log->info("config: {}, pump run time {} s, sensor debounce {} s",
@@ -188,25 +280,20 @@ int main(int argumentCount, char** arguments)
     {
         // Pins: the dirty tank sensor pulls LOW when wet, so a falling edge is the trigger.
         GPIO::PinInterface pins;
-        pins.MonitorPin(settings.Gpio.DirtyTankSensorPin, GPIO::Edge::Falling);
-        pins.AddOutputPin(settings.Gpio.PumpRelayPin, settings.Gpio.RelayActiveLow);
-        pins.Start();
-        gpioLog->info("started: sensor on line {}, pump relay on line {}{}",
-                      settings.Gpio.DirtyTankSensorPin, settings.Gpio.PumpRelayPin,
-                      settings.Gpio.RelayActiveLow ? " (active low)" : "");
+        ConfigurePins(pins, settings);
 
         // Flows: Idle waits for the sensor, EmptyTank runs the pump, then back to Idle.
         StateMachine::Machine machine;
-        DirtyTank::DirtyTankFlow& dirtyTankFlow = machine.AddFlow<DirtyTank::DirtyTankFlow>("DirtyTank");
-        dirtyTankFlow.pinMonitor = &pins;
-        dirtyTankFlow.settings = &settings;
-        dirtyTankFlow.AddState<DirtyTank::States::Idle>();
-        dirtyTankFlow.AddState<DirtyTank::States::EmptyTank>();
-        dirtyTankFlow.SetLooping(true);
-        LogPhases(dirtyTankFlow);
+        // Declared after the machine so it's destroyed (and stopped) first.
+        std::unique_ptr<ClankerCleaner::Dreame::DockMonitor> dockMonitor = CreateDockMonitor(settings.Dreame, machine);
+        ConfigureFlows(machine, pins, settings, dockMonitor.get());
 
+        if (dockMonitor)
+        {
+            dockMonitor->Start();
+        }
         machine.Start();
-        machine.StartFlow(dirtyTankFlow.GetName());
+        machine.StartFlow(ClankerCleaner::Flows::DirtyTank::FLOWNAME);
         log->info("state machine started");
 
         // Run until a stop signal, or until every flow has finished or aborted.
@@ -234,6 +321,10 @@ int main(int argumentCount, char** arguments)
         }
 
         log->info("shutting down");
+        if (dockMonitor)
+        {
+            dockMonitor->Stop();
+        }
         // Stopping the machine aborts running flows, so states turn their outputs off first.
         machine.Stop();
         pins.StopAndWait();

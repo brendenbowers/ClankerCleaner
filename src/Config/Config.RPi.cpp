@@ -22,6 +22,9 @@ namespace ClankerCleaner::Config
         constexpr std::int64_t MaxPinLine = 27;
         constexpr std::int64_t MaxPumpRunSeconds = 60 * 60;
         constexpr std::int64_t MaxSensorDebounceSeconds = 10 * 60;
+        // Faster than every 10 s risks the cloud rate-limiting the account.
+        constexpr std::int64_t MinPollSeconds = 10;
+        constexpr std::int64_t MaxPollSeconds = 60 * 60;
         constexpr std::array LogLevels{"trace", "debug", "info", "warn", "err", "critical", "off"};
 
         class SettingsReader
@@ -141,6 +144,8 @@ namespace ClankerCleaner::Config
             reader.ReadInteger("gpio.dirty_tank_sensor_pin", settings.Gpio.DirtyTankSensorPin, 0, MaxPinLine));
         settings.Gpio.PumpRelayPin = static_cast<std::uint32_t>(
             reader.ReadInteger("gpio.pump_relay_pin", settings.Gpio.PumpRelayPin, 0, MaxPinLine));
+        settings.Gpio.DirtyTankRinseRelayPin = static_cast<std::uint32_t>(
+            reader.ReadInteger("gpio.dirty_tank_rinse_relay_pin", settings.Gpio.DirtyTankRinseRelayPin, 0, MaxPinLine));
         settings.Gpio.RelayActiveLow = reader.ReadBool("gpio.relay_active_low", settings.Gpio.RelayActiveLow);
         if(settings.Gpio.DirtyTankSensorPin == settings.Gpio.PumpRelayPin)
         {
@@ -152,6 +157,30 @@ namespace ClankerCleaner::Config
             reader.ReadInteger("dirty_tank.pump_run_seconds", settings.DirtyTank.PumpRunTime.count(), 1, MaxPumpRunSeconds));
         settings.DirtyTank.SensorDebounce = std::chrono::seconds(
             reader.ReadInteger("dirty_tank.sensor_debounce_seconds", settings.DirtyTank.SensorDebounce.count(), 0, MaxSensorDebounceSeconds));
+
+        DreameSettings& dreame = settings.Dreame;
+        dreame.Enabled = reader.ReadBool("dreame.enabled", dreame.Enabled);
+        dreame.Account = reader.ReadString("dreame.account", dreame.Account);
+        if(dreame.Account != "mova" && dreame.Account != "dreame")
+        {
+            throw reader.Error(*table.at_path("dreame.account").node(), "dreame.account", "expected mova or dreame");
+        }
+        dreame.Username = reader.ReadString("dreame.username", dreame.Username);
+        dreame.Password = reader.ReadString("dreame.password", dreame.Password);
+        dreame.Country = reader.ReadString("dreame.country", dreame.Country);
+        const bool countryIsCode = dreame.Country.size() >= 2 && dreame.Country.size() <= 3 &&
+            std::all_of(dreame.Country.begin(), dreame.Country.end(), [](char character) { return character >= 'a' && character <= 'z'; });
+        if(!countryIsCode)
+        {
+            throw std::runtime_error(std::format("{}: dreame.country: expected a lower-case region code such as \"us\" or \"eu\"", filePath));
+        }
+        dreame.Device = reader.ReadString("dreame.device", dreame.Device);
+        dreame.PollInterval = std::chrono::seconds(
+            reader.ReadInteger("dreame.poll_seconds", dreame.PollInterval.count(), MinPollSeconds, MaxPollSeconds));
+        if(dreame.Enabled && (dreame.Username.empty() || dreame.Password.empty()))
+        {
+            throw std::runtime_error(std::format("{}: dreame.enabled is true but dreame.username or dreame.password is empty", filePath));
+        }
 
         return settings;
     }

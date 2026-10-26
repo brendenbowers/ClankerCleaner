@@ -40,6 +40,18 @@ if(CLANKER_PLATFORM STREQUAL "RPi")
         DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
     FetchContent_MakeAvailable(tomlplusplus)
     list(APPEND CLANKER_PLATFORM_LIBRARIES tomlplusplus::tomlplusplus)
+
+    # cpp-httplib (header-only) for HTTPS to the Dreame/MOVA cloud; only HttpsClient.RPi.cpp
+    # includes it. Needs libssl-dev and zlib1g-dev, installed by scripts/setup-pi.sh.
+    set(HTTPLIB_REQUIRE_OPENSSL ON CACHE BOOL "" FORCE)
+    set(HTTPLIB_REQUIRE_ZLIB ON CACHE BOOL "" FORCE)
+    set(HTTPLIB_USE_BROTLI_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(httplib
+        URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.18.3.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+    FetchContent_MakeAvailable(httplib)
+    find_package(OpenSSL REQUIRED)
+    list(APPEND CLANKER_PLATFORM_LIBRARIES httplib::httplib OpenSSL::Crypto)
 endif()
 
 find_package(Threads REQUIRED)
@@ -55,6 +67,12 @@ FetchContent_Declare(argparse
     URL https://github.com/p-ranav/argparse/archive/refs/tags/v3.1.tar.gz
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 FetchContent_MakeAvailable(argparse)
+
+# nlohmann/json for the cloud API's requests and responses.
+FetchContent_Declare(nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+FetchContent_MakeAvailable(nlohmann_json)
 
 # Every source and header under src/; CONFIGURE_DEPENDS re-checks the folders on each build.
 file(GLOB_RECURSE CLANKER_SOURCES CONFIGURE_DEPENDS
@@ -90,4 +108,5 @@ target_link_libraries(clanker_cleaner PRIVATE
     ${CLANKER_PLATFORM_LIBRARIES}
     spdlog::spdlog
     argparse::argparse
+    nlohmann_json::nlohmann_json
     Threads::Threads)
