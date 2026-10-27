@@ -26,6 +26,7 @@
 #include "Flows/DirtyTank/Constants.h"
 #include "Flows/DirtyTank/States/Idle.h"
 #include "Flows/DirtyTank/States/EmptyTank.h"
+#include "Flows/DirtyTank/States/Rinse.h"
 
 namespace
 {
@@ -170,7 +171,7 @@ namespace
 
         auto monitor = std::make_unique<Dreame::DockMonitor>(std::move(options), settings.PollInterval, settings.Push);
         // Wake the flows so states see the new status straight away.
-        monitor->SetChangeListener([&machine](const Dreame::DockStatus& previous, const Dreame::DockStatus& current)
+        monitor->AddChangeListener([&machine](const Dreame::DockStatus& previous, const Dreame::DockStatus& current)
         {
             LogDockChange(previous, current);
             machine.Wake();
@@ -190,6 +191,8 @@ void ConfigurePins(ClankerCleaner::GPIO::PinInterface& pins, ClankerCleaner::Con
     pins.MonitorPin(settings.Gpio.DirtyTankSensorPin, GPIO::Edge::Falling);
     pins.AddOutputPin(settings.Gpio.PumpRelayPin, settings.Gpio.RelayActiveLow);
     pins.AddOutputPin(settings.Gpio.DirtyTankRinseRelayPin, settings.Gpio.RelayActiveLow);
+    pins.AddOutputPin(settings.Gpio.CleanTankFillRelayPin, settings.Gpio.RelayActiveLow);
+    pins.AddOutputPin(settings.Gpio.CleanerDosingRelayPin, settings.Gpio.RelayActiveLow);
     pins.Start();
 
     for (const auto& [id, pin] : pins.GetInputPins())
@@ -204,7 +207,7 @@ void ConfigurePins(ClankerCleaner::GPIO::PinInterface& pins, ClankerCleaner::Con
 }
 
 void ConfigureFlows(ClankerCleaner::StateMachine::Machine& machine, ClankerCleaner::GPIO::PinInterface& pins, ClankerCleaner::Config::Settings& settings,
-                    const ClankerCleaner::Dreame::DockMonitor* dockMonitor)
+                    ClankerCleaner::Dreame::DockMonitor* dockMonitor)
 {
     namespace StateMachine = ClankerCleaner::StateMachine;
     namespace DirtyTank = ClankerCleaner::Flows::DirtyTank;
@@ -215,6 +218,7 @@ void ConfigureFlows(ClankerCleaner::StateMachine::Machine& machine, ClankerClean
     dirtyTankFlow.dockMonitor = dockMonitor;
     dirtyTankFlow.AddState<DirtyTank::States::Idle>();
     dirtyTankFlow.AddState<DirtyTank::States::EmptyTank>();
+    dirtyTankFlow.AddState<DirtyTank::States::Rinse>();
     dirtyTankFlow.SetLooping(true);
     LogPhases(dirtyTankFlow);
 }

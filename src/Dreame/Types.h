@@ -237,6 +237,9 @@ namespace ClankerCleaner::Dreame
         bool IsRobotCleaning() const;
         // The base is washing mops or moving water, so draining or filling would interfere.
         bool IsBaseBusy() const;
+        // A mop wash is running (not paused). It finished when this goes false without the
+        // robot moving to WashingPaused, Paused or Error.
+        bool IsWashingMop() const;
         bool IsCleanTankEmpty() const;
         // Also true while the dirty tank is lifted out; the dock reports both the same way.
         bool IsDirtyTankFull() const;

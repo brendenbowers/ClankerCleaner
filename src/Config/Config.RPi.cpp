@@ -13,6 +13,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string_view>
+#include <utility>
 
 namespace ClankerCleaner::Config
 {
@@ -22,6 +23,8 @@ namespace ClankerCleaner::Config
         constexpr std::int64_t MaxPinLine = 27;
         constexpr std::int64_t MaxPumpRunSeconds = 60 * 60;
         constexpr std::int64_t MaxSensorDebounceSeconds = 10 * 60;
+        // Kept short: the rinse fills the dirty tank from the house supply.
+        constexpr std::int64_t MaxRinseSeconds = 5 * 60;
         // Faster than every 10 s risks the cloud rate-limiting the account.
         constexpr std::int64_t MinPollSeconds = 10;
         constexpr std::int64_t MaxPollSeconds = 60 * 60;
@@ -146,15 +149,35 @@ namespace ClankerCleaner::Config
             reader.ReadInteger("gpio.pump_relay_pin", settings.Gpio.PumpRelayPin, 0, MaxPinLine));
         settings.Gpio.DirtyTankRinseRelayPin = static_cast<std::uint32_t>(
             reader.ReadInteger("gpio.dirty_tank_rinse_relay_pin", settings.Gpio.DirtyTankRinseRelayPin, 0, MaxPinLine));
+        settings.Gpio.CleanTankFillRelayPin = static_cast<std::uint32_t>(
+            reader.ReadInteger("gpio.clean_tank_fill_relay_pin", settings.Gpio.CleanTankFillRelayPin, 0, MaxPinLine));
+        settings.Gpio.CleanerDosingRelayPin = static_cast<std::uint32_t>(
+            reader.ReadInteger("gpio.cleaner_dosing_relay_pin", settings.Gpio.CleanerDosingRelayPin, 0, MaxPinLine));
         settings.Gpio.RelayActiveLow = reader.ReadBool("gpio.relay_active_low", settings.Gpio.RelayActiveLow);
-        if(settings.Gpio.DirtyTankSensorPin == settings.Gpio.PumpRelayPin)
+
+        const std::array<std::pair<const char*, std::uint32_t>, 5> assignedPins{{
+            {"gpio.dirty_tank_sensor_pin", settings.Gpio.DirtyTankSensorPin},
+            {"gpio.pump_relay_pin", settings.Gpio.PumpRelayPin},
+            {"gpio.dirty_tank_rinse_relay_pin", settings.Gpio.DirtyTankRinseRelayPin},
+            {"gpio.clean_tank_fill_relay_pin", settings.Gpio.CleanTankFillRelayPin},
+            {"gpio.cleaner_dosing_relay_pin", settings.Gpio.CleanerDosingRelayPin},
+        }};
+        for(std::size_t firstIndex = 0; firstIndex < assignedPins.size(); ++firstIndex)
         {
-            throw std::runtime_error(std::format("{}: gpio.dirty_tank_sensor_pin and gpio.pump_relay_pin are both {}",
-                                                 filePath, settings.Gpio.PumpRelayPin));
+            for(std::size_t secondIndex = firstIndex + 1; secondIndex < assignedPins.size(); ++secondIndex)
+            {
+                if(assignedPins[firstIndex].second == assignedPins[secondIndex].second)
+                {
+                    throw std::runtime_error(std::format("{}: {} and {} are both {}", filePath, assignedPins[firstIndex].first,
+                                                         assignedPins[secondIndex].first, assignedPins[firstIndex].second));
+                }
+            }
         }
 
         settings.DirtyTank.PumpRunTime = std::chrono::seconds(
             reader.ReadInteger("dirty_tank.pump_run_seconds", settings.DirtyTank.PumpRunTime.count(), 1, MaxPumpRunSeconds));
+        settings.DirtyTank.RinseTime = std::chrono::seconds(
+            reader.ReadInteger("dirty_tank.rinse_seconds", settings.DirtyTank.RinseTime.count(), 1, MaxRinseSeconds));
         settings.DirtyTank.SensorDebounce = std::chrono::seconds(
             reader.ReadInteger("dirty_tank.sensor_debounce_seconds", settings.DirtyTank.SensorDebounce.count(), 0, MaxSensorDebounceSeconds));
 

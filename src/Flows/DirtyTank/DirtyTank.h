@@ -19,6 +19,6 @@ namespace ClankerCleaner::Flows::DirtyTank
         GPIO::PinInterface* pinMonitor;
         const Config::Settings* settings = nullptr;
         // Robot and dock state from the cloud; nullptr when [dreame] is disabled.
-        const Dreame::DockMonitor* dockMonitor = nullptr;
+        Dreame::DockMonitor* dockMonitor = nullptr;
     };
 }

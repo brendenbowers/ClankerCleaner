@@ -96,4 +96,26 @@ namespace ClankerCleaner::StateMachine
     private:
         std::string name;
     };
+
+
+    template<typename TFlow>
+    class StateWithFlow : public State
+    {
+        static_assert(std::is_base_of_v<Flow, TFlow>, "TFlow must derive from Flow");
+
+        using State::State;
+
+        virtual Transition Begin(TFlow& flow) { return State::Begin(static_cast<Flow&>(flow)); }
+        Transition Begin(Flow& flow) override { return Begin(static_cast<TFlow&>(flow)); }
+        
+        virtual Transition Run(TFlow& flow) = 0;
+        Transition Run(Flow& flow) override { return Run(static_cast<TFlow&>(flow)); }
+
+        
+        virtual bool End(TFlow& flow) { return State::End(static_cast<Flow&>(flow)); }
+        bool End(Flow& flow) override { return End(static_cast<TFlow&>(flow)); }
+        
+        virtual void Abort(TFlow& flow) { State::Abort(static_cast<Flow&>(flow)); }
+        void Abort(Flow& flow) override { Abort(static_cast<TFlow&>(flow)); }
+    };
 }

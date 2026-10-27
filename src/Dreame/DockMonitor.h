@@ -2,12 +2,15 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <optional>
 #include <stop_token>
 #include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include "Dreame/CloudClient.h"
 #include "Dreame/Types.h"
@@ -25,6 +28,7 @@ namespace ClankerCleaner::Dreame
         // Called on a monitor thread whenever anything changes (including going offline or
         // back online). Calls never overlap. Keep it short, e.g. log and Machine::Wake().
         using ChangeListener = std::function<void(const DockStatus& previous, const DockStatus& current)>;
+        using ListenerId = std::uint64_t;
 
         // pollInterval applies while push updates are off; with them on, polling slows to a
         // refresh every few minutes.
@@ -34,8 +38,10 @@ namespace ClankerCleaner::Dreame
         DockMonitor(const DockMonitor&) = delete;
         DockMonitor& operator=(const DockMonitor&) = delete;
 
-        // Set before Start().
-        void SetChangeListener(ChangeListener listener);
+        // Listeners run in the order added. Safe from any thread, but not from inside a
+        // listener (it would deadlock).
+        ListenerId AddChangeListener(ChangeListener listener);
+        void RemoveChangeListener(ListenerId listenerId);
 
         void Start();
         void Stop();
@@ -53,18 +59,19 @@ namespace ClankerCleaner::Dreame
         // Stores the channel and wakes the push thread if it changed (e.g. a new token).
         void OfferPushChannel(PushChannel channel);
         void HandlePush(const std::string& payload);
-        // Applies a change to the status under the lock, then tells the listener.
+        // Applies a change to the status under the lock, then tells the listeners.
         void Update(const std::function<void(DockStatus&)>& change);
 
         CloudOptions options;
         std::chrono::seconds pollInterval;
         bool usePush;
-        ChangeListener changeListener;
 
         mutable std::mutex statusMutex;
         DockStatus status;
-        // Keeps listener calls from the two threads in order.
+        // Guards the listener list and keeps calls from the two threads in order.
         std::mutex listenerMutex;
+        std::vector<std::pair<ListenerId, ChangeListener>> changeListeners;
+        ListenerId nextListenerId = 1;
 
         std::mutex pushChannelMutex;
         std::optional<PushChannel> pushChannel;

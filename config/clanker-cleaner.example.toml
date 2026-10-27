@@ -12,13 +12,18 @@ level = "info"
 [gpio]
 # Line (BCM GPIO) numbers, not physical header pins.
 dirty_tank_sensor_pin = 22   # header pin 15
-pump_relay_pin = 17          # header pin 11
+pump_relay_pin = 17          # header pin 11, relay IN1
+dirty_tank_rinse_relay_pin = 27   # header pin 13, relay IN2
+clean_tank_fill_relay_pin = 5     # header pin 29, relay IN3
+cleaner_dosing_relay_pin = 6      # header pin 31, relay IN4
 # true if the relay board's trigger jumper is on L
 relay_active_low = false
 
 [dirty_tank]
 # How long the pump runs each time the tank is emptied, 1 to 3600.
 pump_run_seconds = 240
+# How long the rinse solenoid stays open each time the tank is rinsed, 1 to 300.
+rinse_seconds = 15
 # How long the sensor must hold a new reading before it's acted on, 0 to 600.
 # Stops water sloshing past the sensor from starting the pump.
 sensor_debounce_seconds = 20

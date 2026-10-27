@@ -25,6 +25,8 @@ namespace ClankerCleaner::Config
         std::uint32_t DirtyTankSensorPin = GPIO::Constants::HIGH_WASTE_WATER_TANK;
         std::uint32_t PumpRelayPin = GPIO::Constants::PUMP_RELAY_PIN;
         std::uint32_t DirtyTankRinseRelayPin = GPIO::Constants::DIRTY_TANK_RINSE_RELAY_PIN;
+        std::uint32_t CleanTankFillRelayPin = GPIO::Constants::CLEAN_TANK_FILL_RELAY_PIN;
+        std::uint32_t CleanerDosingRelayPin = GPIO::Constants::CLEANER_DOSING_RELAY_PIN;
         // True for a relay board with its trigger jumper on L.
         bool RelayActiveLow = false;
     };
@@ -32,6 +34,8 @@ namespace ClankerCleaner::Config
     struct DirtyTankSettings
     {
         std::chrono::seconds PumpRunTime{240};
+        // How long the rinse solenoid stays open each time the tank is rinsed.
+        std::chrono::seconds RinseTime{15};
         // How long the sensor must hold a new reading before Idle acts on it.
         std::chrono::seconds SensorDebounce{20};
     };

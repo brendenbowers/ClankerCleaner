@@ -70,9 +70,18 @@ namespace ClankerCleaner::Dreame
         Stop();
     }
 
-    void DockMonitor::SetChangeListener(ChangeListener listener)
+    DockMonitor::ListenerId DockMonitor::AddChangeListener(ChangeListener listener)
     {
-        changeListener = std::move(listener);
+        std::lock_guard<std::mutex> lock(listenerMutex);
+        const ListenerId listenerId = nextListenerId++;
+        changeListeners.emplace_back(listenerId, std::move(listener));
+        return listenerId;
+    }
+
+    void DockMonitor::RemoveChangeListener(ListenerId listenerId)
+    {
+        std::lock_guard<std::mutex> lock(listenerMutex);
+        std::erase_if(changeListeners, [listenerId](const auto& entry) { return entry.first == listenerId; });
     }
 
     void DockMonitor::Start()
@@ -314,9 +323,13 @@ namespace ClankerCleaner::Dreame
             change(status);
             next = status;
         }
-        if (changeListener && !previous.SameStateAs(next))
+        if (previous.SameStateAs(next))
         {
-            changeListener(previous, next);
+            return;
+        }
+        for (const auto& entry : changeListeners)
+        {
+            entry.second(previous, next);
         }
     }
 }

@@ -61,6 +61,14 @@ namespace ClankerCleaner::Dreame
                                RobotState::AutoEmptying, RobotState::Emptying});
     }
 
+    bool DockStatus::IsWashingMop() const
+    {
+        // The app's isWashingMop() checks only the base; the robot state covers models or
+        // moments where 4.25 lags.
+        return IsOneOf(Base, {BaseStatus::Washing, BaseStatus::CleanAddWater}) ||
+               IsOneOf(Robot, {RobotState::Washing, RobotState::CleanAddWater});
+    }
+
     bool DockStatus::IsCleanTankEmpty() const
     {
         return CleanTank == CleanWaterTank::LowWater ||
