@@ -4,6 +4,8 @@
 #include <exception>
 #include <stdexcept>
 
+#include "Logging/Logging.h"
+
 namespace ClankerCleaner::StateMachine
 {
     Flow::Flow(Machine& machine, std::string name)
@@ -63,6 +65,16 @@ namespace ClankerCleaner::StateMachine
 
     bool Flow::RequestStart()
     {
+        {
+            auto logger = Logging::Get("StateMachineFlow");
+            logger->info("Flow {} starting with states:", GetName());
+            for(const State* state : stateOrder)
+            {
+                logger->info(state->GetName());
+            }
+        }
+
+
         if (IsRunning() || !FindState(initialStateName))
         {
             return false;

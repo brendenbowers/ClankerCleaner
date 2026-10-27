@@ -9,8 +9,6 @@
 
 namespace ClankerCleaner::Flows::DirtyTank
 {
-    constexpr const char* FLOWNAME = "DirtyTankFlow";
-
     class DirtyTankFlow : public StateMachine::Flow
     {
     public:

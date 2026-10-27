@@ -6,8 +6,8 @@
 
 namespace ClankerCleaner::Flows::DirtyTank::States
 {
-    EmptyTank::EmptyTank()
-        : StateWithFlow<DirtyTankFlow>(Constants::State::EMPTY_TANK_STATE)
+    EmptyTank::EmptyTank(const std::string name)
+        : StateWithFlow<DirtyTankFlow>(name)
     {
     }
 

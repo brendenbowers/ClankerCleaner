@@ -22,11 +22,9 @@
 #include "GPIO/Constants.h"
 #include "Logging/Logging.h"
 #include "StateMachine/Machine.h"
-#include "Flows/DirtyTank/DirtyTank.h"
 #include "Flows/DirtyTank/Constants.h"
-#include "Flows/DirtyTank/States/Idle.h"
-#include "Flows/DirtyTank/States/EmptyTank.h"
-#include "Flows/DirtyTank/States/Rinse.h"
+#include "Setup/ConfigureFlows.h"
+#include "Setup/ConfigurePins.h"
 
 namespace
 {
@@ -86,47 +84,6 @@ namespace
         return true;
     }
 
-    std::string_view PhaseName(ClankerCleaner::StateMachine::StatePhase phase)
-    {
-        using ClankerCleaner::StateMachine::StatePhase;
-        switch (phase)
-        {
-        case StatePhase::None: return "none";
-        case StatePhase::Begin: return "begin";
-        case StatePhase::Running: return "running";
-        case StatePhase::End: return "end";
-        case StatePhase::Abort: return "abort";
-        }
-        return "unknown";
-    }
-
-    // Logs every phase change to the flow's own logger: entering a state at info,
-    // aborts at warn with the reason, everything else at debug.
-    void LogPhases(ClankerCleaner::StateMachine::Flow& flow)
-    {
-        using ClankerCleaner::StateMachine::Flow;
-        using ClankerCleaner::StateMachine::State;
-        using ClankerCleaner::StateMachine::StatePhase;
-
-        auto flowLogger = ClankerCleaner::Logging::Get(flow.GetName());
-        flow.SetPhaseListener([flowLogger](const Flow& changedFlow, const State& state, StatePhase phase)
-        {
-            if (phase == StatePhase::Abort)
-            {
-                const std::string reason = changedFlow.GetLastError();
-                flowLogger->warn("{} aborted{}{}", state.GetName(), reason.empty() ? "" : ": ", reason);
-            }
-            else if (phase == StatePhase::Begin)
-            {
-                flowLogger->info("entering {}", state.GetName());
-            }
-            else
-            {
-                flowLogger->debug("{} {}", state.GetName(), PhaseName(phase));
-            }
-        });
-    }
-
     // Logs the new state on every change, plus a line of its own when the things the
     // flows care about flip.
     void LogDockChange(const ClankerCleaner::Dreame::DockStatus& previous, const ClankerCleaner::Dreame::DockStatus& current)
@@ -180,48 +137,6 @@ namespace
     }
 }
 
-
-void ConfigurePins(ClankerCleaner::GPIO::PinInterface& pins, ClankerCleaner::Config::Settings& settings)
-{
-    namespace GPIO = ClankerCleaner::GPIO;
-    namespace Logging = ClankerCleaner::Logging;
-
-    auto gpioLog = Logging::Get("GPIO");
-
-    pins.MonitorPin(settings.Gpio.DirtyTankSensorPin, GPIO::Edge::Falling);
-    pins.AddOutputPin(settings.Gpio.PumpRelayPin, settings.Gpio.RelayActiveLow);
-    pins.AddOutputPin(settings.Gpio.DirtyTankRinseRelayPin, settings.Gpio.RelayActiveLow);
-    pins.AddOutputPin(settings.Gpio.CleanTankFillRelayPin, settings.Gpio.RelayActiveLow);
-    pins.AddOutputPin(settings.Gpio.CleanerDosingRelayPin, settings.Gpio.RelayActiveLow);
-    pins.Start();
-
-    for (const auto& [id, pin] : pins.GetInputPins())
-    {
-        gpioLog->info("Monitoring Pin {}", id);
-    }
-
-    for (const auto& [id, pin] : pins.GetOutputPins())
-    {
-        gpioLog->info("Output Pin {}", id);
-    }
-}
-
-void ConfigureFlows(ClankerCleaner::StateMachine::Machine& machine, ClankerCleaner::GPIO::PinInterface& pins, ClankerCleaner::Config::Settings& settings,
-                    ClankerCleaner::Dreame::DockMonitor* dockMonitor)
-{
-    namespace StateMachine = ClankerCleaner::StateMachine;
-    namespace DirtyTank = ClankerCleaner::Flows::DirtyTank;
-
-    DirtyTank::DirtyTankFlow& dirtyTankFlow = machine.AddFlow<DirtyTank::DirtyTankFlow>(DirtyTank::FLOWNAME);
-    dirtyTankFlow.pinMonitor = &pins;
-    dirtyTankFlow.settings = &settings;
-    dirtyTankFlow.dockMonitor = dockMonitor;
-    dirtyTankFlow.AddState<DirtyTank::States::Idle>();
-    dirtyTankFlow.AddState<DirtyTank::States::EmptyTank>();
-    dirtyTankFlow.AddState<DirtyTank::States::Rinse>();
-    dirtyTankFlow.SetLooping(true);
-    LogPhases(dirtyTankFlow);
-}
 
 int main(int argumentCount, char** arguments)
 {
@@ -284,20 +199,20 @@ int main(int argumentCount, char** arguments)
     {
         // Pins: the dirty tank sensor pulls LOW when wet, so a falling edge is the trigger.
         GPIO::PinInterface pins;
-        ConfigurePins(pins, settings);
+        ClankerCleaner::Setup::ConfigurePins(pins, settings);
 
         // Flows: Idle waits for the sensor, EmptyTank runs the pump, then back to Idle.
         StateMachine::Machine machine;
         // Declared after the machine so it's destroyed (and stopped) first.
         std::unique_ptr<ClankerCleaner::Dreame::DockMonitor> dockMonitor = CreateDockMonitor(settings.Dreame, machine);
-        ConfigureFlows(machine, pins, settings, dockMonitor.get());
+        ClankerCleaner::Setup::ConfigureFlows(machine, pins, settings, dockMonitor.get());
 
         if (dockMonitor)
         {
             dockMonitor->Start();
         }
         machine.Start();
-        machine.StartFlow(ClankerCleaner::Flows::DirtyTank::FLOWNAME);
+        machine.StartFlow(ClankerCleaner::Flows::DirtyTank::Constants::State::FLOWNAME);
         log->info("state machine started");
 
         // Run until a stop signal, or until every flow has finished or aborted.

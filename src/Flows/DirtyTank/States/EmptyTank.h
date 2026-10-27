@@ -3,6 +3,7 @@
 #include <chrono>
 #include "StateMachine/State.h"
 #include "Flows/DirtyTank/DirtyTank.h"
+#include "Flows/DirtyTank/Constants.h"
 
 
 namespace ClankerCleaner::Flows::DirtyTank::States
@@ -14,7 +15,7 @@ namespace ClankerCleaner::Flows::DirtyTank::States
     class EmptyTank : public StateWithFlow<DirtyTankFlow>
     {
     public:
-        EmptyTank();
+        EmptyTank(const std::string name = Constants::State::EMPTY_TANK_STATE);
         ~EmptyTank() override = default;
 
         Transition Begin(DirtyTankFlow& flow) override;
