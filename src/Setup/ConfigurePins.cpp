@@ -10,6 +10,7 @@ namespace ClankerCleaner::Setup
         auto gpioLog = Logging::Get("GPIO");
 
         pins.MonitorPin(settings.Gpio.DirtyTankSensorPin, GPIO::Edge::Falling);
+        pins.MonitorPin(settings.Gpio.CleanTankHighSensorPin, GPIO::Edge::Falling);
         pins.AddOutputPin(settings.Gpio.PumpRelayPin, settings.Gpio.RelayActiveLow);
         pins.AddOutputPin(settings.Gpio.DirtyTankRinseRelayPin, settings.Gpio.RelayActiveLow);
         pins.AddOutputPin(settings.Gpio.CleanTankFillRelayPin, settings.Gpio.RelayActiveLow);

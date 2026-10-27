@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
+#include <concepts>
 #include <cstdint>
 #include <filesystem>
 #include <format>
@@ -86,6 +88,39 @@ namespace ClankerCleaner::Config
                 return *value;
             }
 
+            // Typed reads for READ_SETTING: each assigns to target, which also supplies the
+            // fallback unless one is given. Integers and durations need a minimum and maximum.
+            void Read(std::string_view keyPath, std::string& target) const { target = ReadString(keyPath, target); }
+            void Read(std::string_view keyPath, std::string& target, const std::string& fallback) const { target = ReadString(keyPath, fallback); }
+
+            void Read(std::string_view keyPath, bool& target) const { target = ReadBool(keyPath, target); }
+            void Read(std::string_view keyPath, bool& target, bool fallback) const { target = ReadBool(keyPath, fallback); }
+
+            template<std::integral T>
+                requires(!std::same_as<T, bool>)
+            void Read(std::string_view keyPath, T& target, std::int64_t minimum, std::int64_t maximum) const
+            {
+                Read(keyPath, target, static_cast<std::int64_t>(target), minimum, maximum);
+            }
+            template<std::integral T>
+                requires(!std::same_as<T, bool>)
+            void Read(std::string_view keyPath, T& target, std::int64_t fallback, std::int64_t minimum, std::int64_t maximum) const
+            {
+                target = static_cast<T>(ReadInteger(keyPath, fallback, minimum, maximum));
+            }
+
+            // Durations are read as a count of their own unit, e.g. seconds for std::chrono::seconds.
+            template<typename Rep, typename Period>
+            void Read(std::string_view keyPath, std::chrono::duration<Rep, Period>& target, std::int64_t minimum, std::int64_t maximum) const
+            {
+                Read(keyPath, target, static_cast<std::int64_t>(target.count()), minimum, maximum);
+            }
+            template<typename Rep, typename Period>
+            void Read(std::string_view keyPath, std::chrono::duration<Rep, Period>& target, std::int64_t fallback, std::int64_t minimum, std::int64_t maximum) const
+            {
+                target = std::chrono::duration<Rep, Period>(ReadInteger(keyPath, fallback, minimum, maximum));
+            }
+
             std::runtime_error Error(const toml::node& node, std::string_view keyPath, std::string_view problem) const
             {
                 const toml::source_position position = node.source().begin;
@@ -101,7 +136,36 @@ namespace ClankerCleaner::Config
             const toml::table& table;
             const std::string& filePath;
         };
+
+        // "Gpio.DirtyTankSensorPin" -> "gpio.dirty_tank_sensor_pin".
+        std::string KeyFromPath(std::string_view path)
+        {
+            std::string key;
+            for(std::size_t index = 0; index < path.size(); ++index)
+            {
+                const char character = path[index];
+                if(character >= 'A' && character <= 'Z')
+                {
+                    if(index > 0 && path[index - 1] != '.')
+                    {
+                        key += '_';
+                    }
+                    key += static_cast<char>(character - 'A' + 'a');
+                }
+                else
+                {
+                    key += character;
+                }
+            }
+            return key;
+        }
     }
+
+// Reads settings.<path> with the Read overload for its type, from the key KeyFromPath gives.
+// Extra arguments go to that overload: [fallback,] and for numbers minimum, maximum.
+#define READ_SETTING(path, ...) reader.Read(KeyFromPath(#path), settings.path __VA_OPT__(, ) __VA_ARGS__)
+// As READ_SETTING, for settings whose TOML key doesn't follow from the path.
+#define READ_SETTING_KEY(path, key, ...) reader.Read(key, settings.path __VA_OPT__(, ) __VA_ARGS__)
 
     std::string DefaultPath()
     {
@@ -135,28 +199,25 @@ namespace ClankerCleaner::Config
 
         const SettingsReader reader(table, filePath);
 
-        settings.Log.Level = reader.ReadString("logging.level", settings.Log.Level);
+        READ_SETTING_KEY(Log.Level, "logging.level");
         if(std::find(LogLevels.begin(), LogLevels.end(), settings.Log.Level) == LogLevels.end())
         {
             throw reader.Error(*table.at_path("logging.level").node(), "logging.level",
                                "expected trace, debug, info, warn, err, critical or off");
         }
-        settings.Log.FilePath = reader.ReadString("logging.file", settings.Log.FilePath);
+        READ_SETTING_KEY(Log.FilePath, "logging.file");
 
-        settings.Gpio.DirtyTankSensorPin = static_cast<std::uint32_t>(
-            reader.ReadInteger("gpio.dirty_tank_sensor_pin", settings.Gpio.DirtyTankSensorPin, 0, MaxPinLine));
-        settings.Gpio.PumpRelayPin = static_cast<std::uint32_t>(
-            reader.ReadInteger("gpio.pump_relay_pin", settings.Gpio.PumpRelayPin, 0, MaxPinLine));
-        settings.Gpio.DirtyTankRinseRelayPin = static_cast<std::uint32_t>(
-            reader.ReadInteger("gpio.dirty_tank_rinse_relay_pin", settings.Gpio.DirtyTankRinseRelayPin, 0, MaxPinLine));
-        settings.Gpio.CleanTankFillRelayPin = static_cast<std::uint32_t>(
-            reader.ReadInteger("gpio.clean_tank_fill_relay_pin", settings.Gpio.CleanTankFillRelayPin, 0, MaxPinLine));
-        settings.Gpio.CleanerDosingRelayPin = static_cast<std::uint32_t>(
-            reader.ReadInteger("gpio.cleaner_dosing_relay_pin", settings.Gpio.CleanerDosingRelayPin, 0, MaxPinLine));
-        settings.Gpio.RelayActiveLow = reader.ReadBool("gpio.relay_active_low", settings.Gpio.RelayActiveLow);
+        READ_SETTING(Gpio.DirtyTankSensorPin, 0, MaxPinLine);
+        READ_SETTING(Gpio.CleanTankHighSensorPin, 0, MaxPinLine);
+        READ_SETTING(Gpio.PumpRelayPin, 0, MaxPinLine);
+        READ_SETTING(Gpio.DirtyTankRinseRelayPin, 0, MaxPinLine);
+        READ_SETTING(Gpio.CleanTankFillRelayPin, 0, MaxPinLine);
+        READ_SETTING(Gpio.CleanerDosingRelayPin, 0, MaxPinLine);
+        READ_SETTING(Gpio.RelayActiveLow);
 
-        const std::array<std::pair<const char*, std::uint32_t>, 5> assignedPins{{
+        const std::array<std::pair<const char*, std::uint32_t>, 6> assignedPins{{
             {"gpio.dirty_tank_sensor_pin", settings.Gpio.DirtyTankSensorPin},
+            {"gpio.clean_tank_high_sensor_pin", settings.Gpio.CleanTankHighSensorPin},
             {"gpio.pump_relay_pin", settings.Gpio.PumpRelayPin},
             {"gpio.dirty_tank_rinse_relay_pin", settings.Gpio.DirtyTankRinseRelayPin},
             {"gpio.clean_tank_fill_relay_pin", settings.Gpio.CleanTankFillRelayPin},
@@ -174,33 +235,30 @@ namespace ClankerCleaner::Config
             }
         }
 
-        settings.DirtyTank.PumpRunTime = std::chrono::seconds(
-            reader.ReadInteger("dirty_tank.pump_run_seconds", settings.DirtyTank.PumpRunTime.count(), 1, MaxPumpRunSeconds));
-        settings.DirtyTank.RinseTime = std::chrono::seconds(
-            reader.ReadInteger("dirty_tank.rinse_seconds", settings.DirtyTank.RinseTime.count(), 1, MaxRinseSeconds));
-        settings.DirtyTank.SensorDebounce = std::chrono::seconds(
-            reader.ReadInteger("dirty_tank.sensor_debounce_seconds", settings.DirtyTank.SensorDebounce.count(), 0, MaxSensorDebounceSeconds));
+        READ_SETTING_KEY(DirtyTank.PumpRunTime, "dirty_tank.pump_run_seconds", 1, MaxPumpRunSeconds);
+        READ_SETTING_KEY(DirtyTank.RinseTime, "dirty_tank.rinse_seconds", 1, MaxRinseSeconds);
+        READ_SETTING_KEY(DirtyTank.RinsePumpRunTime, "dirty_tank.rinse_pump_run_seconds", 1, MaxPumpRunSeconds);
+        READ_SETTING_KEY(DirtyTank.SensorDebounce, "dirty_tank.sensor_debounce_seconds", 0, MaxSensorDebounceSeconds);
 
         DreameSettings& dreame = settings.Dreame;
-        dreame.Enabled = reader.ReadBool("dreame.enabled", dreame.Enabled);
-        dreame.Account = reader.ReadString("dreame.account", dreame.Account);
+        READ_SETTING(Dreame.Enabled);
+        READ_SETTING(Dreame.Account);
         if(dreame.Account != "mova" && dreame.Account != "dreame")
         {
             throw reader.Error(*table.at_path("dreame.account").node(), "dreame.account", "expected mova or dreame");
         }
-        dreame.Username = reader.ReadString("dreame.username", dreame.Username);
-        dreame.Password = reader.ReadString("dreame.password", dreame.Password);
-        dreame.Country = reader.ReadString("dreame.country", dreame.Country);
+        READ_SETTING(Dreame.Username);
+        READ_SETTING(Dreame.Password);
+        READ_SETTING(Dreame.Country);
         const bool countryIsCode = dreame.Country.size() >= 2 && dreame.Country.size() <= 3 &&
             std::all_of(dreame.Country.begin(), dreame.Country.end(), [](char character) { return character >= 'a' && character <= 'z'; });
         if(!countryIsCode)
         {
             throw std::runtime_error(std::format("{}: dreame.country: expected a lower-case region code such as \"us\" or \"eu\"", filePath));
         }
-        dreame.Device = reader.ReadString("dreame.device", dreame.Device);
-        dreame.PollInterval = std::chrono::seconds(
-            reader.ReadInteger("dreame.poll_seconds", dreame.PollInterval.count(), MinPollSeconds, MaxPollSeconds));
-        dreame.Push = reader.ReadBool("dreame.push", dreame.Push);
+        READ_SETTING(Dreame.Device);
+        READ_SETTING_KEY(Dreame.PollInterval, "dreame.poll_seconds", MinPollSeconds, MaxPollSeconds);
+        READ_SETTING(Dreame.Push);
         if(dreame.Enabled && (dreame.Username.empty() || dreame.Password.empty()))
         {
             throw std::runtime_error(std::format("{}: dreame.enabled is true but dreame.username or dreame.password is empty", filePath));
@@ -209,3 +267,6 @@ namespace ClankerCleaner::Config
         return settings;
     }
 }
+
+#undef READ_SETTING
+#undef READ_SETTING_KEY

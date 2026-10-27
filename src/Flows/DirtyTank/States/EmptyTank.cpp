@@ -6,8 +6,9 @@
 
 namespace ClankerCleaner::Flows::DirtyTank::States
 {
-    EmptyTank::EmptyTank(const std::string name)
+    EmptyTank::EmptyTank(const std::string name, std::chrono::seconds runTime)
         : StateWithFlow<DirtyTankFlow>(name)
+        , runTime(runTime)
     {
     }
 
@@ -19,7 +20,7 @@ namespace ClankerCleaner::Flows::DirtyTank::States
             return Transition::Abort();
         }
 
-        Logging::Get(flow.GetName())->info("pump on");
+        Logging::Get(flow.GetName())->info("pump on, expected runtime: {} s", runTime.count());
         pumpStart = std::chrono::steady_clock::now();
         return Transition::Next();
     }
@@ -27,7 +28,7 @@ namespace ClankerCleaner::Flows::DirtyTank::States
     Transition EmptyTank::Run(DirtyTankFlow& flow)
     {
         //todo: add checking the low sensor on the dirty tank once we have one
-        if(pumpStart.time_since_epoch().count() == 0 || std::chrono::steady_clock::now() - pumpStart >= flow.settings->DirtyTank.PumpRunTime)
+        if(pumpStart.time_since_epoch().count() == 0 || std::chrono::steady_clock::now() - pumpStart >= runTime)
         {
             GPIO::PinState state = flow.pinMonitor->GetState(flow.settings->Gpio.DirtyTankSensorPin);
             if(state.PinId != 0 && state.Triggered != false)

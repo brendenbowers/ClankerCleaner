@@ -23,6 +23,7 @@ namespace ClankerCleaner::Config
     {
         // Line (BCM GPIO) numbers, not physical header pins.
         std::uint32_t DirtyTankSensorPin = GPIO::Constants::HIGH_WASTE_WATER_TANK;
+        std::uint32_t CleanTankHighSensorPin = GPIO::Constants::HIGH_CLEAN_WATER_TANK;
         std::uint32_t PumpRelayPin = GPIO::Constants::PUMP_RELAY_PIN;
         std::uint32_t DirtyTankRinseRelayPin = GPIO::Constants::DIRTY_TANK_RINSE_RELAY_PIN;
         std::uint32_t CleanTankFillRelayPin = GPIO::Constants::CLEAN_TANK_FILL_RELAY_PIN;
@@ -36,6 +37,8 @@ namespace ClankerCleaner::Config
         std::chrono::seconds PumpRunTime{240};
         // How long the rinse solenoid stays open each time the tank is rinsed.
         std::chrono::seconds RinseTime{15};
+        // How long the pump runs to empty the tank after each rinse.
+        std::chrono::seconds RinsePumpRunTime{60};
         // How long the sensor must hold a new reading before Idle acts on it.
         std::chrono::seconds SensorDebounce{20};
     };

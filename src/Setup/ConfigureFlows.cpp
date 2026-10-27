@@ -66,9 +66,11 @@ namespace ClankerCleaner::Setup
         dirtyTankFlow.settings = &settings;
         dirtyTankFlow.dockMonitor = dockMonitor;
         dirtyTankFlow.AddState<DirtyTank::States::Idle>();
-        dirtyTankFlow.AddState<DirtyTank::States::EmptyTank>();
+        dirtyTankFlow.AddState<DirtyTank::States::EmptyTank>(DirtyTank::Constants::State::EMPTY_TANK_STATE,
+                                                             settings.DirtyTank.PumpRunTime);
         dirtyTankFlow.AddState<DirtyTank::States::Rinse>();
-        dirtyTankFlow.AddState<DirtyTank::States::EmptyTank>(DirtyTank::Constants::State::EMPTY_RINSED_STATE);
+        dirtyTankFlow.AddState<DirtyTank::States::EmptyTank>(DirtyTank::Constants::State::EMPTY_RINSED_STATE,
+                                                             settings.DirtyTank.RinsePumpRunTime);
         dirtyTankFlow.SetLooping(true);
         LogPhases(dirtyTankFlow);
     }

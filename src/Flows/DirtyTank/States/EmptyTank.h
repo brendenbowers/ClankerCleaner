@@ -15,7 +15,8 @@ namespace ClankerCleaner::Flows::DirtyTank::States
     class EmptyTank : public StateWithFlow<DirtyTankFlow>
     {
     public:
-        EmptyTank(const std::string name = Constants::State::EMPTY_TANK_STATE);
+        // runTime is how long the pump runs each time this state is entered.
+        EmptyTank(const std::string name, std::chrono::seconds runTime);
         ~EmptyTank() override = default;
 
         Transition Begin(DirtyTankFlow& flow) override;
@@ -26,5 +27,6 @@ namespace ClankerCleaner::Flows::DirtyTank::States
 
         bool StopPumping(DirtyTankFlow& flow);
         std::chrono::steady_clock::time_point pumpStart;
+        std::chrono::seconds runTime;
     };
 }
