@@ -8,52 +8,46 @@
 namespace ClankerCleaner::Flows::DirtyTank::States
 {
     Idle::Idle()
-        : State(Constants::State::IDLE_STATE)
+        : StateWithFlow<DirtyTankFlow>(Constants::State::IDLE_STATE)
         , lastEvent(0)
     {
     }
 
-    Transition Idle::Begin(Flow& flow)
+    Transition Idle::Begin(DirtyTankFlow& flow)
     {
-
-        DirtyTankFlow& dirtyTankFlow = static_cast<DirtyTankFlow&>(flow);
-        if(!dirtyTankFlow.settings || !dirtyTankFlow.settings->Dreame.Enabled || !dirtyTankFlow.settings->Dreame.Push || !dirtyTankFlow.dockMonitor)
+        mopWashFinished = false;
+        if(!flow.settings || !flow.settings->Dreame.Enabled || !flow.settings->Dreame.Push || !flow.dockMonitor)
         {
             return Transition::Next();
         }
 
-        DockStatusChangedEventId = dirtyTankFlow.dockMonitor->AddChangeListener(std::bind(&Idle::HandleDockStatusChanged, this, std::placeholders::_1, std::placeholders::_2));
+        DockStatusChangedEventId = flow.dockMonitor->AddChangeListener(std::bind(&Idle::HandleDockStatusChanged, this, std::placeholders::_1, std::placeholders::_2));
 
-        
+
         return Transition::Next();
     }
 
-    Transition Idle::Run(Flow &flow)
+    Transition Idle::Run(DirtyTankFlow& flow)
     {
-        DirtyTankFlow& dirtyTankFlow = static_cast<DirtyTankFlow&>(flow);
-
-        if(DockStatusChangedEventId != std::numeric_limits<Dreame::DockMonitor::ListenerId>::max())
+        if(mopWashFinished.exchange(false))
         {
-            if(Previous.IsWashingMop() && !Current.IsWashingMop())
-            {
-                return Transition::Next();
-            }
+            return Transition::Next();
         }
 
-        
+
         // todo: maybe an optimization checking first if there are changes
         // GetSince includes events at exactly lastEvent, so +1 skips the one already handled.
-        std::vector<GPIO::PinState> changedPins = dirtyTankFlow.pinMonitor->GetSince(lastEvent + 1);
+        std::vector<GPIO::PinState> changedPins = flow.pinMonitor->GetSince(lastEvent + 1);
 
-        const std::uint32_t sensorPin = dirtyTankFlow.settings->Gpio.DirtyTankSensorPin;
-        auto it = std::find_if(changedPins.begin(), changedPins.end(), 
+        const std::uint32_t sensorPin = flow.settings->Gpio.DirtyTankSensorPin;
+        auto it = std::find_if(changedPins.begin(), changedPins.end(),
             [sensorPin](GPIO::PinState pinState) { return pinState.PinId == sensorPin; });
         if(it == changedPins.end())
         {
             return Transition::Stay();
-        }        
+        }
 
-        std::uint64_t debounceTime = (std::chrono::steady_clock::now() -  dirtyTankFlow.settings->DirtyTank.SensorDebounce)
+        std::uint64_t debounceTime = (std::chrono::steady_clock::now() -  flow.settings->DirtyTank.SensorDebounce)
             .time_since_epoch()
             .count();
         if(it->ChangedNS > debounceTime)
@@ -70,36 +64,42 @@ namespace ClankerCleaner::Flows::DirtyTank::States
             return Transition::Next();
         }
 
-        return Transition::Stay();        
+        return Transition::Stay();
     }
 
-    bool Idle::End(Flow& flow)
+    bool Idle::End(DirtyTankFlow& flow)
     {
         UnregisterDockStatusChanged(flow);
         return true;
     }
 
-    void Idle::Abort(Flow& flow)
+    void Idle::Abort(DirtyTankFlow& flow)
     {
         UnregisterDockStatusChanged(flow);
     }
 
-    void Idle::HandleDockStatusChanged(const Dreame::DockStatus& prev, const Dreame::DockStatus& cur)
+    // Runs on a dock monitor thread. Latching the result means a finished wash isn't lost
+    // if another change arrives before the next Run.
+    void Idle::HandleDockStatusChanged(const Dreame::DockStatus& previous, const Dreame::DockStatus& current)
     {
-        Previous = prev;
-        Current = cur;
+        const bool interrupted = current.Robot == Dreame::RobotState::WashingPaused ||
+                                 current.Robot == Dreame::RobotState::Paused ||
+                                 current.Robot == Dreame::RobotState::Error;
+        if(previous.IsWashingMop() && !current.IsWashingMop() && !interrupted)
+        {
+            mopWashFinished = true;
+        }
     }
 
-    void Idle::UnregisterDockStatusChanged(Flow& flow)
+    void Idle::UnregisterDockStatusChanged(DirtyTankFlow& flow)
     {
-        Current = Dreame::DockStatus();
-        Previous = Dreame::DockStatus();
-
-        DirtyTankFlow& dirtyTankFlow = static_cast<DirtyTankFlow&>(flow);
-        if(dirtyTankFlow.dockMonitor && DockStatusChangedEventId != std::numeric_limits<Dreame::DockMonitor::ListenerId>::max())
+        if(flow.dockMonitor && DockStatusChangedEventId != NoListener)
         {
-            dirtyTankFlow.dockMonitor->RemoveChangeListener(DockStatusChangedEventId);
+            // Once this returns the listener can't be running, so `this` is safe to drop.
+            flow.dockMonitor->RemoveChangeListener(DockStatusChangedEventId);
         }
+        DockStatusChangedEventId = NoListener;
+        mopWashFinished = false;
     }
 
 }

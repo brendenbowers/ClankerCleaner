@@ -2,6 +2,7 @@
 
 #include <any>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace ClankerCleaner::StateMachine
@@ -98,24 +99,31 @@ namespace ClankerCleaner::StateMachine
     };
 
 
+    // A state that only runs in TFlow: override the TFlow& overloads and the flow arrives
+    // already cast. The Flow& overloads are final so they can't be overridden by mistake.
     template<typename TFlow>
     class StateWithFlow : public State
     {
-        static_assert(std::is_base_of_v<Flow, TFlow>, "TFlow must derive from Flow");
-
+    public:
         using State::State;
 
         virtual Transition Begin(TFlow& flow) { return State::Begin(static_cast<Flow&>(flow)); }
-        Transition Begin(Flow& flow) override { return Begin(static_cast<TFlow&>(flow)); }
-        
-        virtual Transition Run(TFlow& flow) = 0;
-        Transition Run(Flow& flow) override { return Run(static_cast<TFlow&>(flow)); }
+        Transition Begin(Flow& flow) final { return Begin(Cast(flow)); }
 
-        
+        virtual Transition Run(TFlow& flow) = 0;
+        Transition Run(Flow& flow) final { return Run(Cast(flow)); }
+
         virtual bool End(TFlow& flow) { return State::End(static_cast<Flow&>(flow)); }
-        bool End(Flow& flow) override { return End(static_cast<TFlow&>(flow)); }
-        
+        bool End(Flow& flow) final { return End(Cast(flow)); }
+
         virtual void Abort(TFlow& flow) { State::Abort(static_cast<Flow&>(flow)); }
-        void Abort(Flow& flow) override { Abort(static_cast<TFlow&>(flow)); }
+        void Abort(Flow& flow) final { Abort(Cast(flow)); }
+
+    private:
+        static TFlow& Cast(Flow& flow)
+        {
+            static_assert(std::is_base_of_v<Flow, TFlow>, "TFlow must derive from Flow");
+            return static_cast<TFlow&>(flow);
+        }
     };
 }

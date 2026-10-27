@@ -2,7 +2,7 @@
 
 #include <chrono>
 #include "StateMachine/State.h"
-//#include "GPIO/PinInterface.h"
+#include "Flows/DirtyTank/DirtyTank.h"
 
 
 namespace ClankerCleaner::Flows::DirtyTank::States
@@ -11,19 +11,19 @@ namespace ClankerCleaner::Flows::DirtyTank::States
     using namespace ClankerCleaner::StateMachine;
 
     /// @brief the starting task to check the pins and transition to the clean state
-    class EmptyTank : public State
+    class EmptyTank : public StateWithFlow<DirtyTankFlow>
     {
     public:
         EmptyTank();
         ~EmptyTank() override = default;
 
-        Transition Begin(Flow& flow) override;
-        Transition Run(Flow& flow) override;
-        bool End(Flow& flow) override;
-        void Abort(Flow& flow) override;
+        Transition Begin(DirtyTankFlow& flow) override;
+        Transition Run(DirtyTankFlow& flow) override;
+        bool End(DirtyTankFlow& flow) override;
+        void Abort(DirtyTankFlow& flow) override;
     private:
 
-        bool StopPumping(Flow& flow);
+        bool StopPumping(DirtyTankFlow& flow);
         std::chrono::steady_clock::time_point pumpStart;
     };
 }
