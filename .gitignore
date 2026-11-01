@@ -1,3 +1,6 @@
 build/
 .cache/
 compile_commands.json
+
+# ESP32 credentials (copy esp32/Secrets.example.h)
+esp32/Secrets.h

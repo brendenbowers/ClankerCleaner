@@ -1,0 +1,9 @@
+# Added on top of sdkconfig.defaults for the QEMU build (scripts\esp-idf.cmd --qemu): QEMU
+# emulates an OpenCores Ethernet MAC wired to the PC's network, used in place of WiFi. The
+# driver doesn't work on a real chip, so this build is only for QEMU.
+CONFIG_ETH_USE_OPENETH=y
+
+# QEMU's SHA and AES accelerators can't DMA from PSRAM, where mbedTLS keeps its buffers, so
+# every certificate signature fails to verify; the real chip can. Software crypto instead.
+CONFIG_MBEDTLS_HARDWARE_SHA=n
+CONFIG_MBEDTLS_HARDWARE_AES=n

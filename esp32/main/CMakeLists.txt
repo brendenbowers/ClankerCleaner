@@ -5,7 +5,10 @@ clanker_collect_sources(ESP32 CLANKER_SOURCES CLANKER_HEADERS)
 idf_component_register(
     SRCS ${CLANKER_SOURCES}
     INCLUDE_DIRS "${CLANKER_SOURCE_DIR}"
-    REQUIRES esp_driver_gpio esp_timer esp_hw_support mbedtls pthread)
+    # esp32/, for Secrets.h (see Config/Secrets.ESP32.h).
+    PRIV_INCLUDE_DIRS ".."
+    REQUIRES esp_driver_gpio esp_timer esp_hw_support esp_rom mbedtls pthread
+             esp-tls esp_http_client esp_netif esp_event esp_wifi esp_eth nvs_flash lwip)
 
 clanker_platform_definitions(${COMPONENT_LIB} ESP32)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra)

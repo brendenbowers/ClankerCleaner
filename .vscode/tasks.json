@@ -111,12 +111,14 @@
     },
     {
       "label": "ESP32: run in QEMU",
-      "detail": "Boots the built firmware in Espressif's emulator. Inputs all read LOW. Ctrl+] leaves.",
+      "detail": "Builds the QEMU variant (emulated Ethernet instead of WiFi) and boots it in Espressif's emulator. Inputs all read LOW. Ctrl+] leaves.",
       "type": "shell",
-      "command": "scripts\\esp-idf.cmd qemu monitor",
-      "dependsOn": "ESP32: build",
-      "presentation": { "panel": "dedicated", "focus": true },
-      "problemMatcher": []
+      "command": "scripts\\esp-idf.cmd --qemu build qemu --qemu-extra-args \"-m 8M\" monitor",
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": "absolute"
+      },
+      "presentation": { "panel": "dedicated", "focus": true }
     },
     {
       "label": "ESP32: menuconfig",

@@ -3,6 +3,7 @@
 // (which spdlog calls for every message) asserts there.
 
 #include "Run.h"
+#include "Net/Network.ESP32.h"
 
 #include <chrono>
 #include <csignal>
@@ -29,6 +30,9 @@ extern "C" _sig_func_ptr signal(int /*signalNumber*/, _sig_func_ptr /*handler*/)
 
 extern "C" void app_main()
 {
+    // Offline is fine: the tank flows don't need the network, only the cloud client does.
+    ClankerCleaner::Net::Network::Start();
+
     // Applies only to threads this task creates.
     esp_pthread_cfg_t threadConfig = esp_pthread_get_default_config();
     threadConfig.stack_size = RunStackSize;

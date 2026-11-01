@@ -46,14 +46,13 @@ The same sources also build as firmware for the Freenove ESP32-S3 WROOM board (N
 2. **Build:** run the task **ESP32: build**, or `scripts\esp-idf.cmd build`. The output goes to `build/esp32`.
 3. **Flash:** connect the board's UART USB port, set `clankerCleaner.esp32Port` in `.vscode/settings.json`, then run **ESP32: flash and monitor**.
 
-**Without a board:** run the task **ESP32: run in QEMU**, or `scripts\esp-idf.cmd qemu monitor`. It boots the firmware in Espressif's emulator and shows its log. Startup is slow, so allow a minute or two. Nothing is wired to the emulated GPIO, so every input reads LOW, which an NPN sensor reports as wet. That's enough to check that the program starts and the flows run, not the sensor logic.
+**Without a board:** run the task **ESP32: run in QEMU**, or `scripts\esp-idf.cmd --qemu build qemu --qemu-extra-args "-m 8M" monitor`. `--qemu` selects a separate build in `build/esp32-qemu` (`esp32/sdkconfig.qemu`). That build uses QEMU's emulated Ethernet, wired to your PC's network, instead of Wi-Fi, so the cloud client can be tried too. It also uses software crypto, because QEMU's accelerators can't read PSRAM. That build only runs in QEMU; flash the normal one. `-m 8M` matches the board's PSRAM: QEMU's default of 32 MB fills the address space, and then the flash partitions can't be mapped. Startup is slow, so allow a minute or two. Nothing is wired to the emulated GPIO, so every input reads LOW, which an NPN sensor reports as wet and a PNP one as dry. That's enough to check that the program starts and the flows run, not the sensor logic.
 
-`scripts\esp-idf.cmd` passes its arguments to `idf.py`, e.g. `scripts\esp-idf.cmd size`. Chip settings (flash size, PSRAM, stack sizes) are in `esp32/sdkconfig.defaults`, and the partition table is `esp32/partitions.csv`.
+`scripts\esp-idf.cmd` passes its arguments to `idf.py`, e.g. `scripts\esp-idf.cmd size`. Chip settings (flash size, PSRAM, stack sizes) are in `esp32/sdkconfig.defaults`, and the partition table is `esp32/partitions.csv`. The build only applies those defaults to settings missing from its generated `sdkconfig`. After changing one, delete `build/esp32/sdkconfig` (or `build/esp32-qemu/sdkconfig`) so it's regenerated.
 
 There's no config file on the ESP32. The settings, including the ESP32-S3 pin map, are compiled in from `src/Config/Config.ESP32.cpp`.
 
-Not ported yet:
-- **Wi-Fi and the Dreame/MOVA cloud client.** `Net/*.ESP32.cpp` are placeholders that throw, and `[dreame]` is kept off.
+**Wi-Fi and the cloud client:** copy `esp32/Secrets.example.h` to `esp32/Secrets.h`, which git ignores, and fill in the Wi-Fi network and the MOVA/Dreame account. Without a Wi-Fi network the firmware runs offline. Without an account username the cloud client stays off. At startup the firmware joins the network, then sets the clock over SNTP, since certificate checks need it. The credentials are compiled into the firmware, so anyone who can read the board's flash can read them. HTTPS and TLS use ESP-IDF's bundle of common root certificates.
 
 ## libgpiod
 

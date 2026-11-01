@@ -17,3 +17,6 @@ CONFIG_COMPILER_CXX_RTTI=y
 # Stack for the std::thread workers (the state machine, the pin monitor); the 3 KB default
 # is too small for spdlog. Run's own thread is sized in EntryPoint.ESP32.cpp.
 CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=8192
+
+# mbedTLS's buffers (about 40 KB a connection) go in PSRAM, leaving internal RAM for WiFi.
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y

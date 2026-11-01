@@ -1,6 +1,8 @@
 // ESP32 settings: there's no config file, so tune these values and rebuild the firmware.
+// Credentials come from esp32/Secrets.h.
 
 #include "Config/Config.h"
+#include "Config/Secrets.ESP32.h"
 
 namespace ClankerCleaner::Config
 {
@@ -27,8 +29,6 @@ namespace ClankerCleaner::Config
         constexpr std::chrono::seconds CleanTankSensorDebounce{20};
         constexpr std::chrono::seconds CleanTankFillRunTime{120};
         constexpr std::chrono::seconds CleanTankDetergentRunTime{9};
-        // The cloud client isn't ported to the ESP32 yet.
-        constexpr bool DreameEnabled = false;
     }
 
     std::string DefaultPath()
@@ -59,7 +59,13 @@ namespace ClankerCleaner::Config
         settings.CleanTank.SensorDebounce = CleanTankSensorDebounce;
         settings.CleanTank.FillRunTime = CleanTankFillRunTime;
         settings.CleanTank.DetergentRunTime = CleanTankDetergentRunTime;
-        settings.Dreame.Enabled =DreameEnabled;
+        settings.Dreame.Account = Secrets::DreameAccount;
+        settings.Dreame.Username = Secrets::DreameUsername;
+        settings.Dreame.Password = Secrets::DreamePassword;
+        settings.Dreame.Country = Secrets::DreameCountry;
+        settings.Dreame.Device = Secrets::DreameDevice;
+        // On once there's an account to sign in to.
+        settings.Dreame.Enabled = !settings.Dreame.Username.empty();
         return settings;
     }
 }

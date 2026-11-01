@@ -3,6 +3,7 @@ rem ESP-IDF for the ESP32 firmware, kept under .cache like the other fetched dep
 rem Usage:
 rem   esp-idf.cmd install           downloads Python, ESP-IDF and the ESP32-S3 toolchain (once, about 2 GB)
 rem   esp-idf.cmd ^<idf.py args^>      runs idf.py on the esp32 project, e.g. build, or -p COM5 flash monitor
+rem   esp-idf.cmd --qemu ^<args^>      the same on the QEMU build (emulated Ethernet), e.g. --qemu build qemu monitor
 setlocal
 cd /d "%~dp0.."
 
@@ -26,7 +27,18 @@ if not exist "%IDF_TOOLS_PATH%\python_env" (
 )
 call "%IDF_PATH%\export.bat" >nul || exit /b 1
 rem Build output and the generated sdkconfig stay in build\esp32; lasting settings go in esp32\sdkconfig.defaults.
-idf.py -C esp32 -B build\esp32 -D SDKCONFIG="%CD%\build\esp32\sdkconfig" %*
+set "BUILD_DIR=build\esp32"
+set "SDKCONFIG_DEFAULTS=sdkconfig.defaults"
+if /i not "%~1"=="--qemu" goto idf
+set "BUILD_DIR=build\esp32-qemu"
+set "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.qemu"
+rem The arguments after --qemu, quotes intact (shift wouldn't change %*).
+call :idf %2 %3 %4 %5 %6 %7 %8 %9
+exit /b %errorlevel%
+
+:idf
+rem Through python rather than the idf.py.exe launcher, which splits quoted arguments.
+python "%IDF_PATH%\tools\idf.py" -C esp32 -B %BUILD_DIR% -D SDKCONFIG="%CD%\%BUILD_DIR%\sdkconfig" -D SDKCONFIG_DEFAULTS="%SDKCONFIG_DEFAULTS%" %*
 exit /b %errorlevel%
 
 :install
