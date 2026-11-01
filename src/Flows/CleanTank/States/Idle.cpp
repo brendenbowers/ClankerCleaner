@@ -8,6 +8,16 @@
 
 namespace ClankerCleaner::Flows::CleanTank::States
 {
+    namespace
+    {
+        // True once the sensor has held its current reading for the debounce time.
+        bool IsSettled(const GPIO::PinState& state, std::chrono::seconds debounce)
+        {
+            const std::chrono::steady_clock::time_point changed{std::chrono::nanoseconds(state.ChangedNS)};
+            return changed + debounce <= std::chrono::steady_clock::now();
+        }
+    }
+
     Idle::Idle()
         : StateWithFlow<CleanTankFlow>(Constants::State::IDLE_STATE)
     {
@@ -15,9 +25,14 @@ namespace ClankerCleaner::Flows::CleanTank::States
 
     Transition Idle::Begin(CleanTankFlow& flow)
     {
+        sensorConflictLogged = false;
+        if(!flow.settings)
+        {
+            return Transition::Next();
+        }
         Logging::Get(flow.GetName())->debug("High Pin: {}. Low Pin: {}", flow.settings->Gpio.CleanTankHighSensorPin, flow.settings->Gpio.CleanTankLowSensorPin);
 
-        if(!flow.settings || !flow.settings->Dreame.Enabled || !flow.settings->Dreame.Push || !flow.dockMonitor)
+        if(!flow.settings->Dreame.Enabled || !flow.settings->Dreame.Push || !flow.dockMonitor)
         {
             return Transition::Next();
         }
@@ -29,34 +44,34 @@ namespace ClankerCleaner::Flows::CleanTank::States
 
     Transition Idle::Run(CleanTankFlow& flow)
     {
-        using seconds = std::chrono::seconds;
-        using ns = std::chrono::nanoseconds;
-        using time_point = std::chrono::steady_clock::time_point;
-
-        GPIO::PinState hightPinState = flow.pinMonitor->GetState(flow.settings->Gpio.CleanTankHighSensorPin);
-        if(hightPinState == GPIO::PinState::Default)
-        {
-            Logging::Get(flow.GetName())->warn("unable to get pin state for high clean water tank sensor");
-            return Transition::Stay();
-        }
-        
-        if(hightPinState.Triggered && 
-            time_point(ns(hightPinState.ChangedNS)) + seconds(flow.settings->CleanTank.SensorDebounce) > std::chrono::steady_clock::now())
-        {
-            return Transition::Stay();
-        }
-
-
-        GPIO::PinState lowPinState = flow.pinMonitor->GetState(flow.settings->Gpio.CleanTankLowSensorPin);
+        const GPIO::PinState lowPinState = flow.pinMonitor->GetState(flow.settings->Gpio.CleanTankLowSensorPin);
         if(lowPinState == GPIO::PinState::Default)
         {
             Logging::Get(flow.GetName())->warn("unable to get pin state for low clean water tank sensor");
             return Transition::Stay();
         }
 
-        if(lowPinState.Triggered && 
-            time_point(ns(lowPinState.ChangedNS)) + seconds(flow.settings->CleanTank.SensorDebounce) > std::chrono::steady_clock::now())
+        // The tank needs filling once the low sensor has read dry for the debounce time.
+        if(lowPinState.Triggered || !IsSettled(lowPinState, flow.settings->CleanTank.SensorDebounce))
         {
+            return Transition::Stay();
+        }
+
+        const GPIO::PinState highPinState = flow.pinMonitor->GetState(flow.settings->Gpio.CleanTankHighSensorPin);
+        if(highPinState == GPIO::PinState::Default)
+        {
+            Logging::Get(flow.GetName())->warn("unable to get pin state for high clean water tank sensor");
+            return Transition::Stay();
+        }
+
+        // Wet at the top but dry at the bottom can't be right, so don't fill on it.
+        if(highPinState.Triggered)
+        {
+            if(!sensorConflictLogged)
+            {
+                Logging::Get(flow.GetName())->warn("high sensor reads wet but low sensor reads dry; check the sensors and their npn/pnp settings");
+                sensorConflictLogged = true;
+            }
             return Transition::Stay();
         }
 

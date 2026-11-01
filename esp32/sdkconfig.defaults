@@ -1,0 +1,19 @@
+# Settings for the Freenove ESP32-S3 WROOM board (N16R8: 16 MB flash, 8 MB octal PSRAM).
+# The build's sdkconfig is generated from this file into build/esp32; put lasting changes
+# here, since idf.py menuconfig only edits the generated copy.
+CONFIG_IDF_TARGET="esp32s3"
+
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+
+# The shared code throws exceptions; RTTI is on too, as in the Pi build.
+CONFIG_COMPILER_CXX_EXCEPTIONS=y
+CONFIG_COMPILER_CXX_RTTI=y
+
+# Stack for the std::thread workers (the state machine, the pin monitor); the 3 KB default
+# is too small for spdlog. Run's own thread is sized in EntryPoint.ESP32.cpp.
+CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=8192

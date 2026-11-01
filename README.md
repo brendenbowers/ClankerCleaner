@@ -38,6 +38,23 @@ Deleting or renaming a file isn't copied across. Run **Pi: full resync** afterwa
 | Clean | Task **Pi: clean** (removes `build/` on the Pi) |
 | Full resync | Task **Pi: full resync**, after deleting or renaming files |
 
+## ESP32 firmware
+
+The same sources also build as firmware for the Freenove ESP32-S3 WROOM board (N16R8), using Espressif's ESP-IDF. Unlike the Pi build, this compiles on Windows, so no board is needed to build. `esp32/` is the ESP-IDF project. It compiles `src/` with the `*.ESP32.cpp` platform files instead of the `*.RPi.cpp` ones, and `cmake/ClankerSources.cmake` holds the file list both builds share.
+
+1. **Install ESP-IDF once:** run the task **ESP32: install ESP-IDF**, or `scripts\esp-idf.cmd install`. It downloads Python (the python.org build), ESP-IDF and the ESP32-S3 compiler into `.cache`, about 2 GB. Nothing is installed system-wide, and only Git is needed beforehand. The ESP-IDF version is pinned in `scripts/esp-idf.cmd`.
+2. **Build:** run the task **ESP32: build**, or `scripts\esp-idf.cmd build`. The output goes to `build/esp32`.
+3. **Flash:** connect the board's UART USB port, set `clankerCleaner.esp32Port` in `.vscode/settings.json`, then run **ESP32: flash and monitor**.
+
+**Without a board:** run the task **ESP32: run in QEMU**, or `scripts\esp-idf.cmd qemu monitor`. It boots the firmware in Espressif's emulator and shows its log. Startup is slow, so allow a minute or two. Nothing is wired to the emulated GPIO, so every input reads LOW, which an NPN sensor reports as wet. That's enough to check that the program starts and the flows run, not the sensor logic.
+
+`scripts\esp-idf.cmd` passes its arguments to `idf.py`, e.g. `scripts\esp-idf.cmd size`. Chip settings (flash size, PSRAM, stack sizes) are in `esp32/sdkconfig.defaults`, and the partition table is `esp32/partitions.csv`.
+
+There's no config file on the ESP32. The settings, including the ESP32-S3 pin map, are compiled in from `src/Config/Config.ESP32.cpp`.
+
+Not ported yet:
+- **Wi-Fi and the Dreame/MOVA cloud client.** `Net/*.ESP32.cpp` are placeholders that throw, and `[dreame]` is kept off.
+
 ## libgpiod
 
 The project targets Raspberry Pi OS **Trixie**, which ships libgpiod 2.x, and uses the v2 C++ API (`gpiod::chip`, `prepare_request()`, `line_settings`). CMake requires `libgpiodcxx >= 2.0` and prints the version it found. Bookworm's libgpiod 1.6 has a different API and won't build.
@@ -63,9 +80,12 @@ Set `relay_active_low = true` if the relay board's trigger jumper is on L. Two s
 ## Layout
 
 ```
-CMakeLists.txt        build definition (libgpiod via pkg-config)
+CMakeLists.txt        Pi build definition (libgpiod via pkg-config)
 CMakePresets.json     pi-debug / pi-release presets used by the tasks
-src/main.cpp          entry point (stub)
+cmake/                source list shared by the Pi and ESP32 builds
+esp32/                ESP-IDF project for the ESP32-S3 firmware
+src/main.cpp          the program (Run); EntryPoint.<Platform>.cpp starts it
+scripts/esp-idf.cmd   installs ESP-IDF into .cache and runs idf.py
 scripts/setup-pi.sh   dependency install, run on the Pi
 scripts/sync-to-pi.cmd  copies changed files to the Pi
 scripts/fetch-pi-headers.cmd  copies the Pi's headers for IntelliSense

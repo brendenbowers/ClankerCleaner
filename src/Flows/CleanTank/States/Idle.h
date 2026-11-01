@@ -36,5 +36,7 @@ namespace ClankerCleaner::Flows::CleanTank::States
 
         // Set by the dock monitor thread, consumed by Run.
         Dreame::DockMonitor::ListenerId DockStatusChangedEventId = NoListener;
+        // So the sensor conflict is logged once per visit, not every tick.
+        bool sensorConflictLogged = false;
     };
 }

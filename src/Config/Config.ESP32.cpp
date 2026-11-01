@@ -1,12 +1,22 @@
 // ESP32 settings: there's no config file, so tune these values and rebuild the firmware.
 
 #include "Config/Config.h"
-#include "GPIO/Constants.h"
 
 namespace ClankerCleaner::Config
 {
     namespace
     {
+        // ESP32-S3 GPIO numbers (Freenove ESP32-S3 WROOM, N16R8). These avoid the strapping
+        // pins (0, 3, 45, 46), USB (19, 20), the serial console (43, 44), flash and octal
+        // PSRAM (26 to 37), the onboard LED (2) and the camera connector's pins.
+        constexpr std::uint32_t DirtyTankSensorPin = 1;
+        constexpr std::uint32_t CleanTankHighSensorPin = 14;
+        constexpr std::uint32_t CleanTankLowSensorPin = 21;
+        constexpr std::uint32_t PumpRelayPin = 38;
+        constexpr std::uint32_t DirtyTankRinseRelayPin = 39;
+        constexpr std::uint32_t CleanTankFillRelayPin = 40;
+        constexpr std::uint32_t CleanerDosingRelayPin = 41;
+
         constexpr const char* LogLevel = "info";
         constexpr bool RelayActiveLow = false;
         constexpr std::chrono::seconds PumpRunTime{240};
@@ -30,16 +40,16 @@ namespace ClankerCleaner::Config
     {
         Settings settings;
         settings.Log.Level = LogLevel;
-        settings.Gpio.DirtyTankSensorPin = GPIO::Constants::HIGH_WASTE_WATER_TANK;
-        settings.Gpio.CleanTankHighSensorPin = GPIO::Constants::HIGH_CLEAN_WATER_TANK;
-        settings.Gpio.CleanTankLowSensorPin = GPIO::Constants::LOW_CLEAN_WATER_TANK;
+        settings.Gpio.DirtyTankSensorPin = DirtyTankSensorPin;
+        settings.Gpio.CleanTankHighSensorPin = CleanTankHighSensorPin;
+        settings.Gpio.CleanTankLowSensorPin = CleanTankLowSensorPin;
         settings.Gpio.DirtyTankSensorOutput = SensorOutput::Npn;
-        settings.Gpio.CleanTankHighSensorOutput = SensorOutput::Npn;
-        settings.Gpio.CleanTankLowSensorOutput = SensorOutput::Npn;
-        settings.Gpio.PumpRelayPin =GPIO::Constants::PUMP_RELAY_PIN;
-        settings.Gpio.DirtyTankRinseRelayPin = GPIO::Constants::DIRTY_TANK_RINSE_RELAY_PIN;
-        settings.Gpio.CleanTankFillRelayPin = GPIO::Constants::CLEAN_TANK_FILL_RELAY_PIN;
-        settings.Gpio.CleanerDosingRelayPin = GPIO::Constants::CLEANER_DOSING_RELAY_PIN;
+        settings.Gpio.CleanTankHighSensorOutput = SensorOutput::Pnp;
+        settings.Gpio.CleanTankLowSensorOutput = SensorOutput::Pnp;
+        settings.Gpio.PumpRelayPin = PumpRelayPin;
+        settings.Gpio.DirtyTankRinseRelayPin = DirtyTankRinseRelayPin;
+        settings.Gpio.CleanTankFillRelayPin = CleanTankFillRelayPin;
+        settings.Gpio.CleanerDosingRelayPin = CleanerDosingRelayPin;
         settings.Gpio.RelayActiveLow = RelayActiveLow;
         settings.DirtyTank.PumpRunTime = PumpRunTime;
         settings.DirtyTank.RinseTime = RinseTime;

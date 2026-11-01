@@ -16,10 +16,11 @@ namespace ClankerCleaner::Flows::CleanTank::States
     Transition FillTank::Begin(CleanTankFlow &flow)
     {
         GPIO::PinState state = flow.pinMonitor->GetState(flow.settings->Gpio.CleanTankHighSensorPin);
+        // Back to Idle rather than on to AddCleaner: nothing was filled, so nothing to dose.
         if(state != GPIO::PinState::Default && state.Triggered)
         {
-            Logging::Get(flow.GetName())->error("skipping fill tank");
-            return Transition::Skip();
+            Logging::Get(flow.GetName())->info("clean tank already full, not filling");
+            return Transition::GoTo(Constants::State::IDLE_STATE);
         }
 
         if(!flow.pinMonitor->SetOutput(flow.settings->Gpio.CleanTankFillRelayPin, true))

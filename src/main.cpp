@@ -14,6 +14,7 @@
 
 #include <argparse/argparse.hpp>
 
+#include "Run.h"
 #include "Config/Config.h"
 #include "Dreame/DockMonitor.h"
 
@@ -139,7 +140,7 @@ namespace
 }
 
 
-int main(int argumentCount, char** arguments)
+int ClankerCleaner::Run(int argumentCount, char** arguments)
 {
 
     namespace GPIO = ClankerCleaner::GPIO;

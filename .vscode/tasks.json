@@ -79,6 +79,58 @@
       "type": "shell",
       "command": "ssh ${config:clankerCleaner.piHost} \"rm -rf ${config:clankerCleaner.remoteDir}/build\"",
       "problemMatcher": []
+    },
+    // ESP32 tasks build locally with ESP-IDF from .cache (scripts\esp-idf.cmd).
+    {
+      "label": "ESP32: install ESP-IDF",
+      "detail": "Downloads Python, ESP-IDF and the ESP32-S3 toolchain into .cache (about 2 GB). Run once.",
+      "type": "shell",
+      "command": "scripts\\esp-idf.cmd install",
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP32: build",
+      "type": "shell",
+      "command": "scripts\\esp-idf.cmd build",
+      "group": "build",
+      "problemMatcher": { "base": "$gcc", "fileLocation": "absolute" }
+    },
+    {
+      "label": "ESP32: flash and monitor",
+      "detail": "Ctrl+] leaves the monitor.",
+      "type": "shell",
+      "command": "scripts\\esp-idf.cmd -p ${config:clankerCleaner.esp32Port} flash monitor",
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP32: monitor",
+      "detail": "Ctrl+] leaves the monitor.",
+      "type": "shell",
+      "command": "scripts\\esp-idf.cmd -p ${config:clankerCleaner.esp32Port} monitor",
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP32: run in QEMU",
+      "detail": "Boots the built firmware in Espressif's emulator. Inputs all read LOW. Ctrl+] leaves.",
+      "type": "shell",
+      "command": "scripts\\esp-idf.cmd qemu monitor",
+      "dependsOn": "ESP32: build",
+      "presentation": { "panel": "dedicated", "focus": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP32: menuconfig",
+      "detail": "Edits build\\esp32\\sdkconfig. Copy settings you want to keep into esp32\\sdkconfig.defaults.",
+      "type": "shell",
+      "command": "scripts\\esp-idf.cmd menuconfig",
+      "presentation": { "panel": "dedicated", "focus": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP32: clean",
+      "type": "shell",
+      "command": "if exist build\\esp32 rmdir /s /q build\\esp32",
+      "problemMatcher": []
     }
   ]
 }
