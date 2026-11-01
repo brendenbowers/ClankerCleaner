@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 
 // Platform-neutral pin types. Nothing here may include a platform GPIO library: the
 // platform code lives in <Name>.<Platform>.cpp files, and CMake compiles only the target's.
@@ -25,10 +26,21 @@ namespace ClankerCleaner::GPIO
     // Latest edge seen on an input pin.
     struct PinState
     {
-        std::uint64_t ChangedNS;
-        std::uint32_t Sequence;
-        std::uint16_t PinId;
-        bool Triggered;
+        std::uint64_t ChangedNS = 0;
+        std::uint32_t Sequence = 0;
+        std::uint16_t PinId = 0;
+        bool Triggered = false;
+
+        static const PinState Default;
+
+        bool operator==(const PinState&) const = default;
+    };
+
+    inline const PinState PinState::Default{
+        std::numeric_limits<std::uint64_t>::max(), 
+        std::numeric_limits<std::uint32_t>::max(), 
+        std::numeric_limits<std::uint16_t>::max(), 
+        false 
     };
 
     // A GPIO line, identified by the platform's line number (the BCM GPIO number on a Pi).

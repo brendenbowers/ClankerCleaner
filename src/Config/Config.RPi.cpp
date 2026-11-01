@@ -27,6 +27,7 @@ namespace ClankerCleaner::Config
         constexpr std::int64_t MaxSensorDebounceSeconds = 10 * 60;
         // Kept short: the rinse fills the dirty tank from the house supply.
         constexpr std::int64_t MaxRinseSeconds = 5 * 60;
+        constexpr std::int64_t MaxFullOperationSeconds = 2 * 60 * 60;
         // Faster than every 10 s risks the cloud rate-limiting the account.
         constexpr std::int64_t MinPollSeconds = 10;
         constexpr std::int64_t MaxPollSeconds = 60 * 60;
@@ -121,6 +122,24 @@ namespace ClankerCleaner::Config
                 target = std::chrono::duration<Rep, Period>(ReadInteger(keyPath, fallback, minimum, maximum));
             }
 
+            // "npn" or "pnp".
+            void Read(std::string_view keyPath, SensorOutput& target) const
+            {
+                const std::string value = ReadString(keyPath, target == SensorOutput::Pnp ? "pnp" : "npn");
+                if(value == "npn")
+                {
+                    target = SensorOutput::Npn;
+                }
+                else if(value == "pnp")
+                {
+                    target = SensorOutput::Pnp;
+                }
+                else
+                {
+                    throw Error(*Find(keyPath), keyPath, "expected npn or pnp");
+                }
+            }
+
             std::runtime_error Error(const toml::node& node, std::string_view keyPath, std::string_view problem) const
             {
                 const toml::source_position position = node.source().begin;
@@ -209,15 +228,20 @@ namespace ClankerCleaner::Config
 
         READ_SETTING(Gpio.DirtyTankSensorPin, 0, MaxPinLine);
         READ_SETTING(Gpio.CleanTankHighSensorPin, 0, MaxPinLine);
+        READ_SETTING(Gpio.CleanTankLowSensorPin, 0, MaxPinLine);
+        READ_SETTING(Gpio.DirtyTankSensorOutput);
+        READ_SETTING(Gpio.CleanTankHighSensorOutput);
+        READ_SETTING(Gpio.CleanTankLowSensorOutput);
         READ_SETTING(Gpio.PumpRelayPin, 0, MaxPinLine);
         READ_SETTING(Gpio.DirtyTankRinseRelayPin, 0, MaxPinLine);
         READ_SETTING(Gpio.CleanTankFillRelayPin, 0, MaxPinLine);
         READ_SETTING(Gpio.CleanerDosingRelayPin, 0, MaxPinLine);
         READ_SETTING(Gpio.RelayActiveLow);
 
-        const std::array<std::pair<const char*, std::uint32_t>, 6> assignedPins{{
+        const std::array<std::pair<const char*, std::uint32_t>, 7> assignedPins{{
             {"gpio.dirty_tank_sensor_pin", settings.Gpio.DirtyTankSensorPin},
             {"gpio.clean_tank_high_sensor_pin", settings.Gpio.CleanTankHighSensorPin},
+            {"gpio.clean_tank_low_sensor_pin", settings.Gpio.CleanTankLowSensorPin},
             {"gpio.pump_relay_pin", settings.Gpio.PumpRelayPin},
             {"gpio.dirty_tank_rinse_relay_pin", settings.Gpio.DirtyTankRinseRelayPin},
             {"gpio.clean_tank_fill_relay_pin", settings.Gpio.CleanTankFillRelayPin},
@@ -239,6 +263,9 @@ namespace ClankerCleaner::Config
         READ_SETTING_KEY(DirtyTank.RinseTime, "dirty_tank.rinse_seconds", 1, MaxRinseSeconds);
         READ_SETTING_KEY(DirtyTank.RinsePumpRunTime, "dirty_tank.rinse_pump_run_seconds", 1, MaxPumpRunSeconds);
         READ_SETTING_KEY(DirtyTank.SensorDebounce, "dirty_tank.sensor_debounce_seconds", 0, MaxSensorDebounceSeconds);
+        READ_SETTING_KEY(CleanTank.SensorDebounce, "clean_tank.sensor_debounce_seconds", 0, MaxSensorDebounceSeconds);
+        READ_SETTING_KEY(CleanTank.FillRunTime, "clean_tank.fill_run_seconds", 1, MaxPumpRunSeconds);
+        READ_SETTING_KEY(CleanTank.DetergentRunTime, "clean_tank.detergent_run_seconds", 1, MaxRinseSeconds);
 
         DreameSettings& dreame = settings.Dreame;
         READ_SETTING(Dreame.Enabled);

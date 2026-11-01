@@ -125,7 +125,7 @@ namespace ClankerCleaner::GPIO
     {
         std::lock_guard<std::mutex> lock(updateMutex);
         auto pinEntry = monitoredPins.find(pinId);
-        return pinEntry != monitoredPins.end() ? pinEntry->second.GetState() : PinState{};
+        return pinEntry != monitoredPins.end() ? pinEntry->second.GetState() : PinState::Default;
     }
 
     void PinInterface::OnEdge(std::uint32_t pinId, Edge edge, std::uint64_t timestampNs, std::uint32_t sequence)

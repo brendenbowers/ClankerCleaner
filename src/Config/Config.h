@@ -19,12 +19,24 @@ namespace ClankerCleaner::Config
         std::string FilePath;
     };
 
+    // How a level sensor's output switches. Npn pulls the line LOW when wet (pull-up to 3.3 V);
+    // Pnp drives it HIGH when wet (through a divider that also pulls it down when dry).
+    enum class SensorOutput
+    {
+        Npn,
+        Pnp
+    };
+
     struct GpioSettings
     {
         // Line (BCM GPIO) numbers, not physical header pins.
         std::uint32_t DirtyTankSensorPin = GPIO::Constants::HIGH_WASTE_WATER_TANK;
         std::uint32_t CleanTankHighSensorPin = GPIO::Constants::HIGH_CLEAN_WATER_TANK;
-        std::uint32_t PumpRelayPin = GPIO::Constants::PUMP_RELAY_PIN;
+        std::uint32_t CleanTankLowSensorPin = GPIO::Constants::LOW_CLEAN_WATER_TANK;
+        SensorOutput DirtyTankSensorOutput = SensorOutput::Npn;
+        SensorOutput CleanTankHighSensorOutput = SensorOutput::Npn;
+        SensorOutput CleanTankLowSensorOutput = SensorOutput::Npn;
+        std::uint32_t PumpRelayPin =GPIO::Constants::PUMP_RELAY_PIN;
         std::uint32_t DirtyTankRinseRelayPin = GPIO::Constants::DIRTY_TANK_RINSE_RELAY_PIN;
         std::uint32_t CleanTankFillRelayPin = GPIO::Constants::CLEAN_TANK_FILL_RELAY_PIN;
         std::uint32_t CleanerDosingRelayPin = GPIO::Constants::CLEANER_DOSING_RELAY_PIN;
@@ -39,8 +51,20 @@ namespace ClankerCleaner::Config
         std::chrono::seconds RinseTime{15};
         // How long the pump runs to empty the tank after each rinse.
         std::chrono::seconds RinsePumpRunTime{60};
+        // How long the full operation (empty, rinse and refill) may run in total.
+        std::chrono::seconds FullOperationTime{600};
         // How long the sensor must hold a new reading before Idle acts on it.
         std::chrono::seconds SensorDebounce{20};
+    };
+
+    struct CleanTankSettings
+    {
+        // How long the sensor must hold a new reading before it's acted on.
+        std::chrono::seconds SensorDebounce{20};
+        // How long the fill relay stays on each time the tank is filled.
+        std::chrono::seconds FillRunTime{120};
+        // How long the dosing pump runs to add detergent each time the tank is filled.
+        std::chrono::seconds DetergentRunTime{9};
     };
 
     // Polling the robot and dock through the MovaHome/DreameHome cloud account.
@@ -65,6 +89,7 @@ namespace ClankerCleaner::Config
         LogSettings Log;
         GpioSettings Gpio;
         DirtyTankSettings DirtyTank;
+        CleanTankSettings CleanTank;
         DreameSettings Dreame;
     };
 

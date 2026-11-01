@@ -13,7 +13,13 @@ level = "info"
 # Line (BCM GPIO) numbers, not physical header pins.
 dirty_tank_sensor_pin = 22   # header pin 15
 clean_tank_high_sensor_pin = 26   # header pin 37
-pump_relay_pin = 17          # header pin 11, relay IN1
+clean_tank_low_sensor_pin = 23    # header pin 16
+# Level sensor output: "npn" (pulls LOW when wet; 10k pull-up to 3.3 V) or
+# "pnp" (drives HIGH when wet; 10k to the GPIO, then 15k to GND).
+dirty_tank_sensor_output = "npn"
+clean_tank_high_sensor_output = "npn"
+clean_tank_low_sensor_output = "npn"
+pump_relay_pin = 17         # header pin 11, relay IN1
 dirty_tank_rinse_relay_pin = 27   # header pin 13, relay IN2
 clean_tank_fill_relay_pin = 5     # header pin 29, relay IN3
 cleaner_dosing_relay_pin = 6      # header pin 31, relay IN4
@@ -27,9 +33,20 @@ pump_run_seconds = 240
 rinse_seconds = 15
 # How long the pump runs to empty the tank after each rinse, 1 to 3600.
 rinse_pump_run_seconds = 60
+# How long the full operation (empty, rinse and refill) may run in total, 1 to 7200.
+fill_operation_seconds = 600
 # How long the sensor must hold a new reading before it's acted on, 0 to 600.
 # Stops water sloshing past the sensor from starting the pump.
 sensor_debounce_seconds = 20
+
+[clean_tank]
+# How long the sensor must hold a new reading before it's acted on, 0 to 600.
+sensor_debounce_seconds = 20
+# How long the fill relay stays on each time the tank is filled, 1 to 3600.
+fill_run_seconds = 120
+# How long the dosing pump runs to add detergent each time the tank is filled, 1 to 300.
+# At about 100 mL/min, 9 seconds is roughly 15 mL.
+detergent_run_seconds = 9
 
 [dreame]
 # Reads the robot's and dock's state (cleaning, clean tank empty, dirty tank full) from

@@ -8,6 +8,13 @@
 #include "Flows/DirtyTank/States/EmptyTank.h"
 #include "Flows/DirtyTank/States/Idle.h"
 #include "Flows/DirtyTank/States/Rinse.h"
+
+#include "Flows/CleanTank/Constants.h"
+#include "Flows/CleanTank/CleanTank.h"
+#include "Flows/CleanTank/States/Idle.h"
+#include "Flows/CleanTank/States/FillTank.h"
+#include "Flows/CleanTank/States/AddCleaner.h"
+
 #include "Logging/Logging.h"
 
 namespace ClankerCleaner::Setup
@@ -59,19 +66,37 @@ namespace ClankerCleaner::Setup
     void ConfigureFlows(StateMachine::Machine& machine, GPIO::PinInterface& pins, Config::Settings& settings,
                         Dreame::DockMonitor* dockMonitor)
     {
-        namespace DirtyTank = Flows::DirtyTank;
+        {
+            namespace DirtyTank = Flows::DirtyTank;
 
-        DirtyTank::DirtyTankFlow& dirtyTankFlow = machine.AddFlow<DirtyTank::DirtyTankFlow>(DirtyTank::Constants::State::FLOWNAME);
-        dirtyTankFlow.pinMonitor = &pins;
-        dirtyTankFlow.settings = &settings;
-        dirtyTankFlow.dockMonitor = dockMonitor;
-        dirtyTankFlow.AddState<DirtyTank::States::Idle>();
-        dirtyTankFlow.AddState<DirtyTank::States::EmptyTank>(DirtyTank::Constants::State::EMPTY_TANK_STATE,
-                                                             settings.DirtyTank.PumpRunTime);
-        dirtyTankFlow.AddState<DirtyTank::States::Rinse>();
-        dirtyTankFlow.AddState<DirtyTank::States::EmptyTank>(DirtyTank::Constants::State::EMPTY_RINSED_STATE,
-                                                             settings.DirtyTank.RinsePumpRunTime);
-        dirtyTankFlow.SetLooping(true);
-        LogPhases(dirtyTankFlow);
+            DirtyTank::DirtyTankFlow& flow = machine.AddFlow<DirtyTank::DirtyTankFlow>(DirtyTank::Constants::State::FLOWNAME);
+            flow.pinMonitor = &pins;
+            flow.settings = &settings;
+            flow.dockMonitor = dockMonitor;
+            flow.AddState<DirtyTank::States::Idle>();
+            flow.AddState<DirtyTank::States::EmptyTank>(DirtyTank::Constants::State::EMPTY_TANK_STATE,
+                                                                settings.DirtyTank.PumpRunTime);
+            flow.AddState<DirtyTank::States::Rinse>();
+            flow.AddState<DirtyTank::States::EmptyTank>(DirtyTank::Constants::State::EMPTY_RINSED_STATE,
+                                                                settings.DirtyTank.RinsePumpRunTime);
+            flow.SetLooping(true);
+            LogPhases(flow);
+        }
+        
+        {
+            namespace CleanTank = Flows::CleanTank;
+            
+            CleanTank::CleanTankFlow& flow = machine.AddFlow<CleanTank::CleanTankFlow>(CleanTank::Constants::State::FLOWNAME);
+            flow.pinMonitor = &pins;
+            flow.settings = &settings;
+            flow.dockMonitor = dockMonitor;
+
+            flow.AddState<CleanTank::States::Idle>();
+            flow.AddState<CleanTank::States::FillTank>();
+            flow.AddState<CleanTank::States::AddCleanerState>();
+            
+            flow.SetLooping(true);
+            LogPhases(flow);
+        }
     }
 }

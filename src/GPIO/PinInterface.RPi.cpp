@@ -74,6 +74,13 @@ namespace ClankerCleaner::GPIO
             gpiod::line_request& request = *platformState->InputRequest;
             gpiod::edge_event_buffer eventBuffer(32);
 
+            
+            for(auto& [pinId, pin] : monitoredPins)
+            {
+                gpiod::line::value val = request.get_value(pinId);
+                pin.HandleEdge(val == gpiod::line::value::ACTIVE ? Edge::Rising : Edge::Falling, 0, 0);
+            }
+
             while(!stopToken.stop_requested())
             {
                 if(!request.wait_edge_events(EdgeWaitTimeout))

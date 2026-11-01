@@ -6,6 +6,6 @@
 namespace ClankerCleaner::Setup
 {
     // Registers the monitored and output pins from the settings and starts the pin interface.
-    // The dirty tank sensor pulls LOW when wet, so a falling edge is the trigger.
+    // Each level sensor's trigger edge and bias follow its SensorOutput setting.
     void ConfigurePins(GPIO::PinInterface& pins, Config::Settings& settings);
 }

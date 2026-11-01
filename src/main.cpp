@@ -23,6 +23,7 @@
 #include "Logging/Logging.h"
 #include "StateMachine/Machine.h"
 #include "Flows/DirtyTank/Constants.h"
+#include "Flows/CleanTank/Constants.h"
 #include "Setup/ConfigureFlows.h"
 #include "Setup/ConfigurePins.h"
 
@@ -213,6 +214,7 @@ int main(int argumentCount, char** arguments)
         }
         machine.Start();
         machine.StartFlow(ClankerCleaner::Flows::DirtyTank::Constants::State::FLOWNAME);
+        machine.StartFlow(ClankerCleaner::Flows::CleanTank::Constants::State::FLOWNAME);
         log->info("state machine started");
 
         // Run until a stop signal, or until every flow has finished or aborted.

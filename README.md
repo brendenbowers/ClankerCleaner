@@ -44,6 +44,22 @@ The project targets Raspberry Pi OS **Trixie**, which ships libgpiod 2.x, and us
 
 C++ API reference: https://libgpiod.readthedocs.io/
 
+## Pinout
+
+Pins are BCM GPIO line numbers, not physical header positions. Every one can be changed under `[gpio]` in the config file (see `config/clanker-cleaner.example.toml`); the defaults live in `src/GPIO/Constants.h`.
+
+| Function | Direction | BCM GPIO | Header pin | Config key |
+|---|---|---|---|---|
+| Dirty tank high sensor | Input (falling edge = wet) | 22 | 15 | `dirty_tank_sensor_pin` |
+| Clean tank high sensor | Input | 26 | 37 | `clean_tank_high_sensor_pin` |
+| Clean tank low sensor | Input | 23 | 16 | `clean_tank_low_sensor_pin` |
+| Pump relay (IN1) | Output | 17 | 11 | `pump_relay_pin` |
+| Dirty tank rinse relay (IN2) | Output | 27 | 13 | `dirty_tank_rinse_relay_pin` |
+| Clean tank fill relay (IN3) | Output | 5 | 29 | `clean_tank_fill_relay_pin` |
+| Cleaner dosing relay (IN4) | Output | 6 | 31 | `cleaner_dosing_relay_pin` |
+
+Set `relay_active_low = true` if the relay board's trigger jumper is on L. Two settings can't share a pin; the config loader rejects duplicates.
+
 ## Layout
 
 ```

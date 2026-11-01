@@ -15,7 +15,7 @@ namespace ClankerCleaner::Flows::DirtyTank::States
     Transition Rinse::Begin(Flows::DirtyTank::DirtyTankFlow& flow)
     {
         GPIO::PinState state = flow.pinMonitor->GetState(flow.settings->Gpio.DirtyTankSensorPin);
-        if(state.PinId != 0 && state.Triggered != false)
+        if(state != GPIO::PinState::Default && state.Triggered != false)
         {
             Logging::Get(flow.GetName())->error("dirty tank sensor is wet cannot rinse due to water level");
             return Transition::Abort();
