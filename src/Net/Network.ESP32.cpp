@@ -144,8 +144,11 @@ namespace ClankerCleaner::Net::Network
         // The stack starts even when the link can't, so sockets opened later fail with an
         // error instead of tripping lwIP's asserts.
         events = xEventGroupCreate();
+        // The default event loop may already exist; the GPIO edges use it too.
+        const esp_err_t loopResult = esp_event_loop_create_default();
         if(!events || !Check(esp_netif_init(), "starting the network stack") ||
-           !Check(esp_event_loop_create_default(), "starting the event loop") || !StartStorage() || !StartLink())
+           !Check(loopResult == ESP_ERR_INVALID_STATE ? ESP_OK : loopResult, "starting the event loop") || !StartStorage() ||
+           !StartLink())
         {
             return false;
         }

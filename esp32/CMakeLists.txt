@@ -31,3 +31,5 @@ target_include_directories(${clanker_main_lib} SYSTEM PRIVATE
     "${spdlog_SOURCE_DIR}/include"
     "${argparse_SOURCE_DIR}/include"
     "${nlohmann_json_SOURCE_DIR}/include")
+# The log pattern doesn't print the thread id, so spdlog needn't look it up for every message.
+target_compile_definitions(${clanker_main_lib} PRIVATE SPDLOG_NO_THREAD_ID)
