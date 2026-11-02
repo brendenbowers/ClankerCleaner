@@ -1,9 +1,9 @@
 #pragma once
 
 // esp32/Secrets.h when it exists, otherwise the empty example (so the firmware runs offline).
-// Include only from *.ESP32.cpp files.
+// esp32/CMakeLists.txt checks for it. Include only from *.ESP32.cpp files.
 
-#if __has_include(<Secrets.h>)
+#if CLANKER_HAS_SECRETS
 #include <Secrets.h>
 #else
 #include <Secrets.example.h>

@@ -115,6 +115,10 @@ namespace ClankerCleaner::Net
         // Like cpp-httplib's default: a redirect comes back as the response.
         config.disable_auto_redirect = true;
         config.keep_alive_enable = true;
+        // The 512-byte defaults hold the request line and headers; a cloud access token alone
+        // overflows that, and the request then goes out without its headers.
+        config.buffer_size = 4096;
+        config.buffer_size_tx = 4096;
 
         platform->Client = esp_http_client_init(&config);
         if(!platform->Client)

@@ -12,7 +12,7 @@ namespace ClankerCleaner::Config
         // pins (0, 3, 45, 46), USB (19, 20), the serial console (43, 44), flash and octal
         // PSRAM (26 to 37), the onboard LED (2) and the camera connector's pins.
         constexpr std::uint32_t DirtyTankSensorPin = 1;
-        constexpr std::uint32_t CleanTankHighSensorPin = 14;
+        constexpr std::uint32_t CleanTankHighSensorPin = 42;
         constexpr std::uint32_t CleanTankLowSensorPin = 21;
         constexpr std::uint32_t PumpRelayPin = 38;
         constexpr std::uint32_t DirtyTankRinseRelayPin = 39;

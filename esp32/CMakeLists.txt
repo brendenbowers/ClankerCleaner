@@ -33,3 +33,11 @@ target_include_directories(${clanker_main_lib} SYSTEM PRIVATE
     "${nlohmann_json_SOURCE_DIR}/include")
 # The log pattern doesn't print the thread id, so spdlog needn't look it up for every message.
 target_compile_definitions(${clanker_main_lib} PRIVATE SPDLOG_NO_THREAD_ID)
+
+# Whether Secrets.h exists is decided here, not with __has_include: ccache can't see that a
+# missing header has appeared and would reuse the offline object. The glob reruns CMake when
+# the file is created or deleted.
+file(GLOB clanker_secrets CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/Secrets.h")
+if(clanker_secrets)
+    target_compile_definitions(${clanker_main_lib} PRIVATE CLANKER_HAS_SECRETS=1)
+endif()
