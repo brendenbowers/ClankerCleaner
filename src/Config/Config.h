@@ -47,6 +47,15 @@ namespace ClankerCleaner::Config
     struct DirtyTankSettings
     {
         std::chrono::seconds PumpRunTime{240};
+        // Added to PumpRunTime when the full sensor reads wet as the pump starts, since a
+        // full tank holds more than one emptied after a mop wash.
+        std::chrono::seconds FullTankExtraPumpTime{30};
+        // While the mops are being washed the dock keeps draining into the tank, so once the
+        // run time is up the pump keeps going while the sensor is wet or was within this long.
+        std::chrono::seconds MopWashWetWindow{15};
+        // The most the pump runs in one go when it keeps going through a mop wash, in case
+        // the cloud stops reporting and the wash looks like it never ends.
+        std::chrono::seconds MaxPumpRunTime{600};
         // How long the rinse solenoid stays open each time the tank is rinsed.
         std::chrono::seconds RinseTime{15};
         // How long the pump runs to empty the tank after each rinse.

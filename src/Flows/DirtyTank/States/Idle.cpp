@@ -4,6 +4,8 @@
 #include "GPIO/Pin.h"
 #include "GPIO/Constants.h"
 
+#include <algorithm>
+#include <vector>
 
 namespace ClankerCleaner::Flows::DirtyTank::States
 {
@@ -15,21 +17,14 @@ namespace ClankerCleaner::Flows::DirtyTank::States
 
     Transition Idle::Begin(DirtyTankFlow& flow)
     {
-        mopWashFinished = false;
-        if(!flow.settings || !flow.settings->Dreame.Enabled || !flow.settings->Dreame.Push || !flow.dockMonitor)
-        {
-            return Transition::Next();
-        }
-
-        DockStatusChangedEventId = flow.dockMonitor->AddChangeListener(std::bind(&Idle::HandleDockStatusChanged, this, std::placeholders::_1, std::placeholders::_2));
-
-
+        // A wash that finished while the tank was being emptied is already dealt with.
+        flow.dock.ClearWashFinished();
         return Transition::Next();
     }
 
     Transition Idle::Run(DirtyTankFlow& flow)
     {
-        if(mopWashFinished.exchange(false))
+        if(flow.dock.TakeWashFinished())
         {
             return Transition::Next();
         }
@@ -67,39 +62,12 @@ namespace ClankerCleaner::Flows::DirtyTank::States
         return Transition::Stay();
     }
 
-    bool Idle::End(DirtyTankFlow& flow)
+    bool Idle::End(DirtyTankFlow& /*flow*/)
     {
-        UnregisterDockStatusChanged(flow);
         return true;
     }
 
-    void Idle::Abort(DirtyTankFlow& flow)
+    void Idle::Abort(DirtyTankFlow& /*flow*/)
     {
-        UnregisterDockStatusChanged(flow);
     }
-
-    // Runs on a dock monitor thread. Latching the result means a finished wash isn't lost
-    // if another change arrives before the next Run.
-    void Idle::HandleDockStatusChanged(const Dreame::DockStatus& previous, const Dreame::DockStatus& current)
-    {
-        const bool interrupted = current.Robot == Dreame::RobotState::WashingPaused ||
-                                 current.Robot == Dreame::RobotState::Paused ||
-                                 current.Robot == Dreame::RobotState::Error;
-        if(previous.IsWashingMop() && !current.IsWashingMop() && !interrupted)
-        {
-            mopWashFinished = true;
-        }
-    }
-
-    void Idle::UnregisterDockStatusChanged(DirtyTankFlow& flow)
-    {
-        if(flow.dockMonitor && DockStatusChangedEventId != NoListener)
-        {
-            // Once this returns the listener can't be running, so `this` is safe to drop.
-            flow.dockMonitor->RemoveChangeListener(DockStatusChangedEventId);
-        }
-        DockStatusChangedEventId = NoListener;
-        mopWashFinished = false;
-    }
-
 }

@@ -66,6 +66,9 @@ namespace ClankerCleaner::Setup
     void ConfigureFlows(StateMachine::Machine& machine, GPIO::PinInterface& pins, Config::Settings& settings,
                         Dreame::DockMonitor* dockMonitor)
     {
+        // Mop washing comes and goes too quickly for polling, so it's only followed with push updates.
+        const bool watchDock = dockMonitor && settings.Dreame.Enabled && settings.Dreame.Push;
+
         {
             namespace DirtyTank = Flows::DirtyTank;
 
@@ -73,9 +76,14 @@ namespace ClankerCleaner::Setup
             flow.pinMonitor = &pins;
             flow.settings = &settings;
             flow.dockMonitor = dockMonitor;
+            if(watchDock)
+            {
+                flow.dock.Watch(*dockMonitor);
+            }
             flow.AddState<DirtyTank::States::Idle>();
             flow.AddState<DirtyTank::States::EmptyTank>(DirtyTank::Constants::State::EMPTY_TANK_STATE,
-                                                                settings.DirtyTank.PumpRunTime);
+                                                                settings.DirtyTank.PumpRunTime,
+                                                                settings.DirtyTank.FullTankExtraPumpTime);
             flow.AddState<DirtyTank::States::Rinse>();
             flow.AddState<DirtyTank::States::EmptyTank>(DirtyTank::Constants::State::EMPTY_RINSED_STATE,
                                                                 settings.DirtyTank.RinsePumpRunTime);
@@ -90,6 +98,10 @@ namespace ClankerCleaner::Setup
             flow.pinMonitor = &pins;
             flow.settings = &settings;
             flow.dockMonitor = dockMonitor;
+            if(watchDock)
+            {
+                flow.dock.Watch(*dockMonitor);
+            }
 
             flow.AddState<CleanTank::States::Idle>();
             flow.AddState<CleanTank::States::FillTank>();

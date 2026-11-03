@@ -37,8 +37,8 @@ namespace ClankerCleaner::Flows::DirtyTank::States
         GPIO::PinState state = flow.pinMonitor->GetState(flow.settings->Gpio.DirtyTankSensorPin);
         if(state.PinId != 0 && state.Triggered != false)
         {
-            Logging::Get(flow.GetName())->error("dirty tank sensor is wet after {} s of rinsing", std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - rinseStart).count());
-            return Transition::Abort();
+            Logging::Get(flow.GetName())->warn("dirty tank sensor is wet after {} s of rinsing", std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - rinseStart).count());
+            return Transition::Next();
         }
 
         if(rinseStart.time_since_epoch().count() == 0 || std::chrono::steady_clock::now() - rinseStart >= flow.settings->DirtyTank.RinseTime)

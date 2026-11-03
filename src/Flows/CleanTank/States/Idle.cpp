@@ -32,13 +32,6 @@ namespace ClankerCleaner::Flows::CleanTank::States
         }
         Logging::Get(flow.GetName())->debug("High Pin: {}. Low Pin: {}", flow.settings->Gpio.CleanTankHighSensorPin, flow.settings->Gpio.CleanTankLowSensorPin);
 
-        if(!flow.settings->Dreame.Enabled || !flow.settings->Dreame.Push || !flow.dockMonitor)
-        {
-            return Transition::Next();
-        }
-
-        DockStatusChangedEventId = flow.dockMonitor->AddChangeListener(std::bind(&Idle::HandleDockStatusChanged, this, std::placeholders::_1, std::placeholders::_2));
-
         return Transition::Next();
     }
 
@@ -51,6 +44,7 @@ namespace ClankerCleaner::Flows::CleanTank::States
             return Transition::Stay();
         }
 
+        // todo: check flow.dock for whether the dock used water
         // The tank needs filling once the low sensor has read dry for the debounce time.
         if(lowPinState.Triggered || !IsSettled(lowPinState, flow.settings->CleanTank.SensorDebounce))
         {
@@ -78,31 +72,12 @@ namespace ClankerCleaner::Flows::CleanTank::States
         return Transition::Next();
     }
 
-    bool Idle::End(CleanTankFlow& flow)
+    bool Idle::End(CleanTankFlow& /*flow*/)
     {
-        UnregisterDockStatusChanged(flow);
         return true;
     }
 
-    void Idle::Abort(CleanTankFlow& flow)
+    void Idle::Abort(CleanTankFlow& /*flow*/)
     {
-        UnregisterDockStatusChanged(flow);
-    }
-
-    // Runs on a dock monitor thread. Latching the result means a finished wash isn't lost
-    // if another change arrives before the next Run.
-    void Idle::HandleDockStatusChanged(const Dreame::DockStatus& /*previous*/, const Dreame::DockStatus& /*current*/)
-    {
-        // todo: do checking if the dock used water
-    }
-
-    void Idle::UnregisterDockStatusChanged(CleanTankFlow& flow)
-    {
-        if(flow.dockMonitor && DockStatusChangedEventId != NoListener)
-        {
-            // Once this returns the listener can't be running, so `this` is safe to drop.
-            flow.dockMonitor->RemoveChangeListener(DockStatusChangedEventId);
-        }
-        DockStatusChangedEventId = NoListener;
     }
 }

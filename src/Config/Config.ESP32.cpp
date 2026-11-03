@@ -21,14 +21,16 @@ namespace ClankerCleaner::Config
 
         constexpr const char* LogLevel = "info";
         constexpr bool RelayActiveLow = false;
-        constexpr std::chrono::seconds PumpRunTime{240};
-        constexpr std::chrono::seconds RinseTime{15};
-        constexpr std::chrono::seconds RinsePumpRunTime{60};
-        constexpr std::chrono::seconds FullOperationTime{600};
-        constexpr std::chrono::seconds SensorDebounce{20};
-        constexpr std::chrono::seconds CleanTankSensorDebounce{20};
-        constexpr std::chrono::seconds CleanTankFillRunTime{120};
-        constexpr std::chrono::seconds CleanTankDetergentRunTime{9};
+        constexpr std::chrono::seconds PumpRunTime{90};
+        constexpr std::chrono::seconds FullTankExtraPumpTime{30};
+        constexpr std::chrono::seconds MopWashWetWindow{15};
+        constexpr std::chrono::seconds MaxPumpRunTime{600};
+        constexpr std::chrono::seconds RinseTime{7};
+        constexpr std::chrono::seconds RinsePumpRunTime{45};
+        constexpr std::chrono::seconds SensorDebounce{10};
+        constexpr std::chrono::seconds CleanTankSensorDebounce{10};
+        constexpr std::chrono::seconds CleanTankFillRunTime{60};
+        constexpr std::chrono::seconds CleanTankDetergentRunTime{15};
     }
 
     std::string DefaultPath()
@@ -52,9 +54,11 @@ namespace ClankerCleaner::Config
         settings.Gpio.CleanerDosingRelayPin = CleanerDosingRelayPin;
         settings.Gpio.RelayActiveLow = RelayActiveLow;
         settings.DirtyTank.PumpRunTime = PumpRunTime;
+        settings.DirtyTank.FullTankExtraPumpTime = FullTankExtraPumpTime;
+        settings.DirtyTank.MopWashWetWindow = MopWashWetWindow;
+        settings.DirtyTank.MaxPumpRunTime = MaxPumpRunTime;
         settings.DirtyTank.RinseTime = RinseTime;
         settings.DirtyTank.RinsePumpRunTime = RinsePumpRunTime;
-        settings.DirtyTank.FullOperationTime = FullOperationTime;
         settings.DirtyTank.SensorDebounce =SensorDebounce;
         settings.CleanTank.SensorDebounce = CleanTankSensorDebounce;
         settings.CleanTank.FillRunTime = CleanTankFillRunTime;
