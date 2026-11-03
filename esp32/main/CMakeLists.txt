@@ -8,7 +8,8 @@ idf_component_register(
     # esp32/, for Secrets.h (see Config/Secrets.ESP32.h).
     PRIV_INCLUDE_DIRS ".."
     REQUIRES esp_driver_gpio esp_timer esp_hw_support esp_rom mbedtls pthread
-             esp-tls esp_http_client esp_netif esp_event esp_wifi esp_eth nvs_flash lwip)
+             esp-tls esp_http_client esp_http_server app_update esp_app_format esp_netif esp_event
+             esp_wifi esp_eth nvs_flash lwip)
 
 clanker_platform_definitions(${COMPONENT_LIB} ESP32)
 # Run runs on the main task, which isn't a pthread; EntryPoint.ESP32.cpp's wrapper gives it a

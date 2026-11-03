@@ -20,4 +20,8 @@ namespace ClankerCleaner::Secrets
     inline constexpr const char* DreameCountry = "us";
     // Device ID or name; empty uses the first robot vacuum on the account.
     inline constexpr const char* DreameDevice = "";
+
+    // Password for over-the-air updates (scripts\ota-update.cmd sends it); empty turns them
+    // off. Any long random string, e.g. from: powershell -c "[guid]::NewGuid().ToString('N')"
+    inline constexpr const char* OtaToken = "";
 }

@@ -6,6 +6,7 @@
 #include "Run.h"
 #include "Logging/LogCapture.ESP32.h"
 #include "Net/Network.ESP32.h"
+#include "Net/OtaUpdate.ESP32.h"
 #include "Net/TelnetLog.ESP32.h"
 
 #include <chrono>
@@ -57,6 +58,8 @@ extern "C" void app_main()
     // Offline is fine: the tank flows don't need the network, only the cloud client does.
     ClankerCleaner::Net::Network::Start();
     ClankerCleaner::Net::TelnetLog::Start();
+    // Before Run configures the pins: it releases the relay pins an update held off.
+    ClankerCleaner::Net::OtaUpdate::Start();
 
     // Run's stack is the main task's, CONFIG_ESP_MAIN_TASK_STACK_SIZE; threads it starts get
     // CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT.

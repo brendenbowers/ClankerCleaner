@@ -103,6 +103,13 @@
       "problemMatcher": []
     },
     {
+      "label": "ESP32: build and update over the network",
+      "detail": "Builds, then sends the firmware to the board at clankerCleaner.esp32Host, which restarts into it.",
+      "type": "shell",
+      "command": "scripts\\esp-idf.cmd build && scripts\\ota-update.cmd ${config:clankerCleaner.esp32Host}",
+      "problemMatcher": { "base": "$gcc", "fileLocation": "absolute" }
+    },
+    {
       "label": "ESP32: monitor",
       "detail": "Ctrl+] leaves the monitor.",
       "type": "shell",
