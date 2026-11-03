@@ -17,6 +17,7 @@
 #include <esp_attr.h>
 #include <esp_err.h>
 #include <esp_event.h>
+#include <esp_log.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 
@@ -26,6 +27,10 @@ namespace ClankerCleaner::GPIO
     {
         // Event ids are GPIO numbers.
         ESP_EVENT_DEFINE_BASE(ClankerGpioEvent);
+
+        // Input levels go to the log through ESP-IDF's logger rather than spdlog: edges are
+        // handled on the event loop task, whose stack is too small for spdlog.
+        constexpr const char* LogTag = "gpio";
 
         // Handed to the interrupt handler, so it must stay put while the handler is added.
         struct InterruptContext
@@ -80,6 +85,7 @@ namespace ClankerCleaner::GPIO
                 return;
             }
             lastLevel = level;
+            ESP_LOGI(LogTag, "GPIO%d now %s", pin, level ? "HIGH" : "LOW");
 
             pins.OnEdge(pin, EdgeForLevel(level), static_cast<std::uint64_t>(timeUs) * 1000, ++state.Sequences[pin]);
         }
@@ -146,6 +152,7 @@ namespace ClankerCleaner::GPIO
             const gpio_num_t gpio = static_cast<gpio_num_t>(pinId);
             const int level = gpio_get_level(gpio);
             platformState->Levels[gpio] = level;
+            ESP_LOGI(LogTag, "GPIO%d starts %s", gpio, level ? "HIGH" : "LOW");
             pin.HandleEdge(EdgeForLevel(level), 0, 0);
         }
 

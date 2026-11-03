@@ -54,6 +54,8 @@ There's no config file on the ESP32. The settings, including the ESP32-S3 pin ma
 
 **Wi-Fi and the cloud client:** copy `esp32/Secrets.example.h` to `esp32/Secrets.h`, which git ignores, and fill in the Wi-Fi network and the MOVA/Dreame account. Without a Wi-Fi network the firmware runs offline. Without an account username the cloud client stays off. At startup the firmware joins the network, then sets the clock over SNTP, since certificate checks need it. The credentials are compiled into the firmware, so anyone who can read the board's flash can read them. HTTPS and TLS use ESP-IDF's bundle of common root certificates.
 
+**Watching the log:** over USB, run `scripts\esp-idf.cmd -p COM3 monitor` (Ctrl+] exits). Over Wi-Fi, connect to the board's address on port 23 with `telnet` or PuTTY (connection type Telnet). The log server first sends the recent lines it still holds (16 KB), then each line as it's logged, for up to two viewers at a time. There's no password, so anyone on the network can read the log.
+
 ## libgpiod
 
 The project targets Raspberry Pi OS **Trixie**, which ships libgpiod 2.x, and uses the v2 C++ API (`gpiod::chip`, `prepare_request()`, `line_settings`). CMake requires `libgpiodcxx >= 2.0` and prints the version it found. Bookworm's libgpiod 1.6 has a different API and won't build.

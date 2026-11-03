@@ -4,7 +4,9 @@
 // to give the main task an id of its own.
 
 #include "Run.h"
+#include "Logging/LogCapture.ESP32.h"
 #include "Net/Network.ESP32.h"
+#include "Net/TelnetLog.ESP32.h"
 
 #include <chrono>
 #include <csignal>
@@ -49,9 +51,12 @@ extern "C" _sig_func_ptr signal(int /*signalNumber*/, _sig_func_ptr /*handler*/)
 extern "C" void app_main()
 {
     mainTask = xTaskGetCurrentTaskHandle();
+    // First, so the log server's backlog has the network startup too.
+    ClankerCleaner::Logging::Capture::Start();
 
     // Offline is fine: the tank flows don't need the network, only the cloud client does.
     ClankerCleaner::Net::Network::Start();
+    ClankerCleaner::Net::TelnetLog::Start();
 
     // Run's stack is the main task's, CONFIG_ESP_MAIN_TASK_STACK_SIZE; threads it starts get
     // CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT.
