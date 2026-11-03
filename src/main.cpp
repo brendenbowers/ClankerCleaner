@@ -22,6 +22,7 @@
 #include "GPIO/Pin.h"
 #include "GPIO/Constants.h"
 #include "Logging/Logging.h"
+#include "Net/MqttPublisher.h"
 #include "StateMachine/Machine.h"
 #include "Flows/DirtyTank/Constants.h"
 #include "Flows/CleanTank/Constants.h"
@@ -203,6 +204,18 @@ int ClankerCleaner::Run(int argumentCount, char** arguments)
         GPIO::PinInterface pins;
         ClankerCleaner::Setup::ConfigurePins(pins, settings);
 
+        // Declared before the machine so it outlives the flows.
+        std::unique_ptr<ClankerCleaner::Net::MqttPublisher> mqttPublisher;
+        if (settings.Mqtt.Enabled)
+        {
+            mqttPublisher = std::make_unique<ClankerCleaner::Net::MqttPublisher>(settings.Mqtt);
+            mqttPublisher->Start();
+        }
+        else
+        {
+            Logging::Get("Mqtt")->info("publishing off ([mqtt] enabled = false)");
+        }
+
         // Flows: Idle waits for the sensor, EmptyTank runs the pump, then back to Idle.
         StateMachine::Machine machine;
         // Declared after the machine so it's destroyed (and stopped) first.
@@ -249,6 +262,10 @@ int ClankerCleaner::Run(int argumentCount, char** arguments)
         }
         // Stopping the machine aborts running flows, so states turn their outputs off first.
         machine.Stop();
+        if (mqttPublisher)
+        {
+            mqttPublisher->Stop();
+        }
         pins.StopAndWait();
         log->info("stopped");
     }

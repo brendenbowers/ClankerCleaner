@@ -71,3 +71,17 @@ poll_seconds = 30
 # Get changes pushed the way the app does (MQTT); polling drops to every 5 minutes while
 # pushes arrive. Turn off if the push connection misbehaves.
 push = true
+
+[mqtt]
+# Publishes our status to an MQTT broker over TLS: <topic_prefix>/status is "online"
+# (retained) while connected, and the broker sets it to "offline" if the connection drops.
+enabled = false
+host = ""
+port = 8883
+client_id = "clanker-cleaner"
+username = ""
+password = ""
+topic_prefix = "clanker-cleaner"
+# PEM CA certificate the broker's certificate chains to, for a broker with its own CA;
+# leave out to trust the system's CAs.
+# ca_file = "/etc/clanker-cleaner/mqtt-ca.crt"

@@ -24,4 +24,13 @@ namespace ClankerCleaner::Secrets
     // Password for over-the-air updates (scripts\ota-update.cmd sends it); empty turns them
     // off. Any long random string, e.g. from: powershell -c "[guid]::NewGuid().ToString('N')"
     inline constexpr const char* OtaToken = "";
+
+    // Our MQTT broker, for publishing status; an empty host leaves it off.
+    inline constexpr const char* MqttHost = "";
+    inline constexpr int MqttPort = 8883;
+    inline constexpr const char* MqttUsername = "";
+    inline constexpr const char* MqttPassword = "";
+    // PEM CA certificate the broker's certificate chains to, e.g. R"(-----BEGIN CERTIFICATE-----
+    // ...)"; empty trusts the usual public CAs.
+    inline constexpr const char* MqttCaCertificate = "";
 }

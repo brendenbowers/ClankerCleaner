@@ -1,7 +1,6 @@
 #include "Net/MqttClient.h"
 
 #include <algorithm>
-#include <array>
 
 namespace ClankerCleaner::Net
 {
@@ -21,9 +20,13 @@ namespace ClankerCleaner::Net
         };
 
         constexpr std::uint8_t CleanSessionFlag = 0x02;
+        constexpr std::uint8_t WillFlag = 0x04;
+        constexpr int WillQosShift = 3;
+        constexpr std::uint8_t WillRetainFlag = 0x20;
         constexpr std::uint8_t PasswordFlag = 0x40;
         constexpr std::uint8_t UsernameFlag = 0x80;
         constexpr std::size_t MaxPacketSize = 1024 * 1024;
+        constexpr std::size_t ReadChunkSize = 4096;
 
         void AppendUint16(std::vector<std::uint8_t>& bytes, std::uint16_t value)
         {
@@ -68,6 +71,15 @@ namespace ClankerCleaner::Net
         AppendString(body, "MQTT");
         body.push_back(4); // protocol level 3.1.1
         std::uint8_t flags = CleanSessionFlag | options.ExtraConnectFlags;
+        const bool hasWill = !options.WillTopic.empty();
+        if (hasWill)
+        {
+            flags |= static_cast<std::uint8_t>(WillFlag | (std::min<std::uint8_t>(options.WillQos, 1) << WillQosShift));
+            if (options.WillRetain)
+            {
+                flags |= WillRetainFlag;
+            }
+        }
         if (!options.Username.empty())
         {
             flags |= UsernameFlag;
@@ -79,6 +91,11 @@ namespace ClankerCleaner::Net
         body.push_back(flags);
         AppendUint16(body, static_cast<std::uint16_t>(keepAlive.count()));
         AppendString(body, options.ClientId);
+        if (hasWill)
+        {
+            AppendString(body, options.WillTopic);
+            AppendString(body, options.WillPayload);
+        }
         if (!options.Username.empty())
         {
             AppendString(body, options.Username);
@@ -121,11 +138,7 @@ namespace ClankerCleaner::Net
 
     void MqttClient::Subscribe(const std::string& topic, std::uint8_t qos)
     {
-        const std::uint16_t packetId = nextPacketId++;
-        if (nextPacketId == 0)
-        {
-            nextPacketId = 1;
-        }
+        const std::uint16_t packetId = NextPacketId();
         std::vector<std::uint8_t> body;
         AppendUint16(body, packetId);
         AppendString(body, topic);
@@ -149,6 +162,41 @@ namespace ClankerCleaner::Net
                 return;
             }
             // A message can arrive before the SUBACK; dropping it is fine for a status feed.
+            HandlePacket(*packet);
+        }
+    }
+
+    void MqttClient::Publish(const std::string& topic, const std::string& payload, std::uint8_t qos, bool retain)
+    {
+        qos = std::min<std::uint8_t>(qos, 1);
+        std::vector<std::uint8_t> body;
+        AppendString(body, topic);
+        const std::uint16_t packetId = qos > 0 ? NextPacketId() : 0;
+        if (qos > 0)
+        {
+            AppendUint16(body, packetId);
+        }
+        body.insert(body.end(), payload.begin(), payload.end());
+        Send(static_cast<std::uint8_t>((PublishPacket << 4) | (qos << 1) | (retain ? 0x01 : 0x00)), body);
+        if (qos == 0)
+        {
+            return;
+        }
+
+        // An MQTT 3.1.1 broker answers a publish it doesn't allow by closing the connection,
+        // which shows up here as a failed read.
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
+        while (true)
+        {
+            const std::optional<Packet> packet = ReadPacket(deadline);
+            if (!packet)
+            {
+                Fail("no PUBACK for " + topic);
+            }
+            if ((packet->Header >> 4) == PubAckPacket && packet->Body.size() >= 2 && ReadUint16(packet->Body, 0) == packetId)
+            {
+                return;
+            }
             HandlePacket(*packet);
         }
     }
@@ -185,6 +233,16 @@ namespace ClankerCleaner::Net
                 }
             }
         }
+    }
+
+    std::uint16_t MqttClient::NextPacketId()
+    {
+        const std::uint16_t packetId = nextPacketId++;
+        if (nextPacketId == 0)
+        {
+            nextPacketId = 1;
+        }
+        return packetId;
     }
 
     void MqttClient::Send(std::uint8_t header, const std::vector<std::uint8_t>& body)
@@ -260,17 +318,19 @@ namespace ClankerCleaner::Net
             {
                 return std::nullopt;
             }
-            std::array<std::uint8_t, 4096> chunk{};
+            // On the heap: a 4 KB array here, under a failing TLS read and its error logging,
+            // overflowed an 8 KB ESP32 thread stack when WiFi dropped.
+            readBuffer.resize(ReadChunkSize);
             std::size_t count = 0;
             try
             {
-                count = stream.Read(chunk, std::chrono::ceil<std::chrono::milliseconds>(deadline - now));
+                count = stream.Read(readBuffer, std::chrono::ceil<std::chrono::milliseconds>(deadline - now));
             }
             catch (const std::exception& error)
             {
                 Fail(error.what());
             }
-            received.insert(received.end(), chunk.begin(), chunk.begin() + static_cast<std::ptrdiff_t>(count));
+            received.insert(received.end(), readBuffer.begin(), readBuffer.begin() + static_cast<std::ptrdiff_t>(count));
         }
     }
 

@@ -70,6 +70,13 @@ namespace ClankerCleaner::Config
         settings.Dreame.Device = Secrets::DreameDevice;
         // On once there's an account to sign in to.
         settings.Dreame.Enabled = !settings.Dreame.Username.empty();
+        settings.Mqtt.Host = Secrets::MqttHost;
+        settings.Mqtt.Port = Secrets::MqttPort;
+        settings.Mqtt.Username = Secrets::MqttUsername;
+        settings.Mqtt.Password = Secrets::MqttPassword;
+        settings.Mqtt.CaCertificatesPem = Secrets::MqttCaCertificate;
+        // On once there's a broker to publish to.
+        settings.Mqtt.Enabled = !settings.Mqtt.Host.empty();
         return settings;
     }
 }

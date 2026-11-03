@@ -12,6 +12,8 @@
 #include <cstdint>
 #include <filesystem>
 #include <format>
+#include <fstream>
+#include <iterator>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
@@ -292,6 +294,30 @@ namespace ClankerCleaner::Config
         if(dreame.Enabled && (dreame.Username.empty() || dreame.Password.empty()))
         {
             throw std::runtime_error(std::format("{}: dreame.enabled is true but dreame.username or dreame.password is empty", filePath));
+        }
+
+        MqttSettings& mqtt = settings.Mqtt;
+        READ_SETTING(Mqtt.Enabled);
+        READ_SETTING(Mqtt.Host);
+        READ_SETTING(Mqtt.Port, 1, 65535);
+        READ_SETTING(Mqtt.ClientId);
+        READ_SETTING(Mqtt.Username);
+        READ_SETTING(Mqtt.Password);
+        READ_SETTING(Mqtt.TopicPrefix);
+        if(mqtt.Enabled && mqtt.Host.empty())
+        {
+            throw std::runtime_error(std::format("{}: mqtt.enabled is true but mqtt.host is empty", filePath));
+        }
+        std::string caFile;
+        reader.Read("mqtt.ca_file", caFile);
+        if(!caFile.empty())
+        {
+            std::ifstream caStream(caFile);
+            if(!caStream)
+            {
+                throw std::runtime_error(std::format("{}: mqtt.ca_file: can't read {}", filePath, caFile));
+            }
+            mqtt.CaCertificatesPem.assign(std::istreambuf_iterator<char>(caStream), std::istreambuf_iterator<char>());
         }
 
         return settings;

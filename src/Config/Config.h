@@ -91,6 +91,21 @@ namespace ClankerCleaner::Config
         bool Push = true;
     };
 
+    // Publishing our own status to an MQTT broker over TLS.
+    struct MqttSettings
+    {
+        bool Enabled = false;
+        std::string Host;
+        int Port = 8883;
+        std::string ClientId = "clanker-cleaner";
+        std::string Username;
+        std::string Password;
+        // Every topic starts with this, e.g. clanker-cleaner/status.
+        std::string TopicPrefix = "clanker-cleaner";
+        // PEM CA certificates the broker's certificate must chain to; empty uses the system store.
+        std::string CaCertificatesPem;
+    };
+
     struct Settings
     {
         LogSettings Log;
@@ -98,6 +113,7 @@ namespace ClankerCleaner::Config
         DirtyTankSettings DirtyTank;
         CleanTankSettings CleanTank;
         DreameSettings Dreame;
+        MqttSettings Mqtt;
     };
 
     // Where this platform looks for its config file; empty if it has none.
