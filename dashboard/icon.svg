@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <!-- Full bleed, so it also works as a maskable icon: the drop stays inside the safe zone. -->
+    <rect width="512" height="512" fill="#0f172a"/>
+    <path d="M256 112c-56 78-104 136-104 196a104 104 0 0 0 208 0c0-60-48-118-104-196z" fill="#60a5fa"/>
+    <path d="M214 316a42 42 0 0 0 42 42" fill="none" stroke="#e0f2fe" stroke-width="18" stroke-linecap="round"/>
+</svg>
