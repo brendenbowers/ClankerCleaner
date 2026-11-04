@@ -1,5 +1,5 @@
 // Clanker Cleaner dashboard: subscribes to what the controller publishes (see
-// src/Setup/PublishEvents.h) and shows it. Talks straight to the broker over MQTT on
+// src/Telemetry/Track.h) and shows it. Talks straight to the broker over MQTT on
 // WebSockets; there's no server of its own.
 
 const TopicPrefix = "clanker-cleaner";

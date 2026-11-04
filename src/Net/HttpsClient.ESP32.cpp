@@ -88,12 +88,53 @@ namespace ClankerCleaner::Net
     {
         ~PlatformState()
         {
+            Discard();
+        }
+
+        // After a failure the handle can stay broken (every open then fails with
+        // ESP_ERR_HTTP_INVALID_TRANS), so it's thrown away and the next request makes a new one.
+        void Discard()
+        {
             if(Client)
             {
                 esp_http_client_cleanup(Client);
+                Client = nullptr;
             }
         }
 
+        esp_http_client_handle_t Get(const std::string& host, int port)
+        {
+            if(Client)
+            {
+                return Client;
+            }
+
+            esp_http_client_config_t config{};
+            config.host = host.c_str();
+            config.port = port;
+            config.path = "/";
+            config.transport_type = HTTP_TRANSPORT_OVER_SSL;
+            config.crt_bundle_attach = esp_crt_bundle_attach;
+            config.timeout_ms = TimeoutMs;
+            config.method = HTTP_METHOD_POST;
+            // Like cpp-httplib's default: a redirect comes back as the response.
+            config.disable_auto_redirect = true;
+            config.keep_alive_enable = true;
+            // The 512-byte defaults hold the request line and headers; a cloud access token alone
+            // overflows that, and the request then goes out without its headers.
+            config.buffer_size = 4096;
+            config.buffer_size_tx = 4096;
+
+            Client = esp_http_client_init(&config);
+            if(!Client)
+            {
+                throw std::runtime_error("HTTPS client for " + host + " couldn't be created");
+            }
+            HeaderNames.clear();
+            return Client;
+        }
+
+        int TimeoutMs = 0;
         esp_http_client_handle_t Client = nullptr;
         // Headers stay set on the client, so the last request's are removed before the next.
         std::vector<std::string> HeaderNames;
@@ -104,27 +145,8 @@ namespace ClankerCleaner::Net
         , port(port)
         , platform(std::make_unique<PlatformState>())
     {
-        esp_http_client_config_t config{};
-        config.host = this->host.c_str();
-        config.port = port;
-        config.path = "/";
-        config.transport_type = HTTP_TRANSPORT_OVER_SSL;
-        config.crt_bundle_attach = esp_crt_bundle_attach;
-        config.timeout_ms = static_cast<int>(std::chrono::milliseconds(timeout).count());
-        config.method = HTTP_METHOD_POST;
-        // Like cpp-httplib's default: a redirect comes back as the response.
-        config.disable_auto_redirect = true;
-        config.keep_alive_enable = true;
-        // The 512-byte defaults hold the request line and headers; a cloud access token alone
-        // overflows that, and the request then goes out without its headers.
-        config.buffer_size = 4096;
-        config.buffer_size_tx = 4096;
-
-        platform->Client = esp_http_client_init(&config);
-        if(!platform->Client)
-        {
-            throw std::runtime_error("HTTPS client for " + this->host + " couldn't be created");
-        }
+        platform->TimeoutMs = static_cast<int>(std::chrono::milliseconds(timeout).count());
+        platform->Get(this->host, port);
     }
 
     HttpsClient::~HttpsClient() = default;
@@ -132,42 +154,44 @@ namespace ClankerCleaner::Net
     HttpResponse HttpsClient::Post(const std::string& path, const HttpHeaders& headers, const std::string& body,
                                    const std::string& contentType)
     {
-        esp_http_client_handle_t client = platform->Client;
+        esp_http_client_handle_t client = nullptr;
         const std::string url = "https://" + host + ":" + std::to_string(port) + path;
         const auto fail = [&](const std::string& reason)
         {
-            // Drops the connection, so the next request starts on a fresh one.
-            esp_http_client_close(client);
+            // Drops the connection and its handle, so the next request starts on fresh ones.
+            platform->Discard();
             return std::runtime_error("POST " + url + " failed: " + reason);
         };
-
-        for(const std::string& name : platform->HeaderNames)
-        {
-            esp_http_client_delete_header(client, name.c_str());
-        }
-        platform->HeaderNames.clear();
-        const auto setHeader = [&](const std::string& name, const std::string& value)
-        {
-            esp_http_client_set_header(client, name.c_str(), value.c_str());
-            platform->HeaderNames.push_back(name);
-        };
-        for(const auto& [name, value] : headers)
-        {
-            setHeader(name, value);
-        }
-        setHeader("Content-Type", contentType);
-
-        if(esp_http_client_set_url(client, url.c_str()) != ESP_OK)
-        {
-            throw fail("the URL isn't valid");
-        }
-        esp_http_client_set_method(client, HTTP_METHOD_POST);
 
         // A kept-alive connection the server has since closed fails before any response
         // arrives; that's retried once, on a new connection.
         for(int attempt = 1;; ++attempt)
         {
             const bool lastAttempt = attempt == 2;
+            client = platform->Get(host, port);
+
+            for(const std::string& name : platform->HeaderNames)
+            {
+                esp_http_client_delete_header(client, name.c_str());
+            }
+            platform->HeaderNames.clear();
+            const auto setHeader = [&](const std::string& name, const std::string& value)
+            {
+                esp_http_client_set_header(client, name.c_str(), value.c_str());
+                platform->HeaderNames.push_back(name);
+            };
+            for(const auto& [name, value] : headers)
+            {
+                setHeader(name, value);
+            }
+            setHeader("Content-Type", contentType);
+
+            if(esp_http_client_set_url(client, url.c_str()) != ESP_OK)
+            {
+                throw fail("the URL isn't valid");
+            }
+            esp_http_client_set_method(client, HTTP_METHOD_POST);
+
             const esp_err_t openResult = esp_http_client_open(client, static_cast<int>(body.size()));
             if(openResult != ESP_OK)
             {

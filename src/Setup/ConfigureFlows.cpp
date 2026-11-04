@@ -44,7 +44,7 @@ namespace ClankerCleaner::Setup
             using StateMachine::StatePhase;
 
             auto flowLogger = Logging::Get(flow.GetName());
-            flow.SetPhaseListener([flowLogger](const Flow& changedFlow, const State& state, StatePhase phase)
+            flow.AddPhaseListener([flowLogger](const Flow& changedFlow, const State& state, StatePhase phase)
             {
                 if (phase == StatePhase::Abort)
                 {

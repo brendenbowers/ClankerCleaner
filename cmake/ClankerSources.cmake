@@ -13,6 +13,15 @@ set(CLANKER_VERSION "${CMAKE_MATCH_1}")
 unset(_clanker_top_level)
 unset(_clanker_match)
 
+# Publishing to an MQTT broker. Off, CLANKER_TRACK is a no-op and the publisher isn't built.
+# option() isn't allowed in script mode, which ESP-IDF uses for its first pass.
+if(NOT CMAKE_SCRIPT_MODE_FILE)
+    option(CLANKER_MQTT "Publish status and events over MQTT" ON)
+endif()
+if(NOT DEFINED CLANKER_MQTT)
+    set(CLANKER_MQTT ON)
+endif()
+
 # Sets <sourcesVar> and <headersVar> to every file under src/ for <platform>.
 function(clanker_collect_sources platform sourcesVar headersVar)
     if(NOT platform IN_LIST CLANKER_PLATFORMS)
@@ -36,15 +45,26 @@ function(clanker_collect_sources platform sourcesVar headersVar)
         endif()
     endforeach()
 
+    if(NOT CLANKER_MQTT)
+        list(FILTER sources EXCLUDE REGEX "/(Telemetry/Telemetry|Net/MqttPublisher)\\.cpp$")
+        list(FILTER headers EXCLUDE REGEX "/Net/MqttPublisher\\.h$")
+    endif()
+
     set(${sourcesVar} ${sources} PARENT_SCOPE)
     set(${headersVar} ${headers} PARENT_SCOPE)
 endfunction()
 
-# CLANKER_VERSION, CLANKER_PLATFORM and CLANKER_PLATFORM_<PLATFORM>=1 for <target>.
+# CLANKER_VERSION, CLANKER_PLATFORM, CLANKER_PLATFORM_<PLATFORM>=1 and CLANKER_MQTT (1 or 0)
+# for <target>.
 function(clanker_platform_definitions target platform)
     string(TOUPPER "${platform}" platformUpper)
+    set(mqtt 0)
+    if(CLANKER_MQTT)
+        set(mqtt 1)
+    endif()
     target_compile_definitions(${target} PRIVATE
         CLANKER_VERSION="${CLANKER_VERSION}"
         CLANKER_PLATFORM="${platform}"
-        CLANKER_PLATFORM_${platformUpper}=1)
+        CLANKER_PLATFORM_${platformUpper}=1
+        CLANKER_MQTT=${mqtt})
 endfunction()

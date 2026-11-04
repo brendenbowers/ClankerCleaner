@@ -93,7 +93,7 @@ namespace ClankerCleaner::Net
                 connected = true;
                 failureCount = 0;
                 log->info("connected to {}:{}", settings.Host, settings.Port);
-                while (!stopToken.stop_requested())
+                while (true)
                 {
                     std::optional<Outgoing> next;
                     {
@@ -103,6 +103,11 @@ namespace ClankerCleaner::Net
                             next = std::move(queue.front());
                             queue.pop_front();
                         }
+                    }
+                    // Sends what's queued before stopping.
+                    if (!next && stopToken.stop_requested())
+                    {
+                        break;
                     }
                     if (!next)
                     {

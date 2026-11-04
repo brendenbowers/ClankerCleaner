@@ -3,6 +3,7 @@
 #include "Dreame/BrokerCertificates.h"
 #include "Logging/Logging.h"
 #include "Net/MqttClient.h"
+#include "Telemetry/Track.h"
 
 #include <nlohmann/json.hpp>
 
@@ -331,5 +332,6 @@ namespace ClankerCleaner::Dreame
         {
             entry.second(previous, next);
         }
+        TELEMETRY_TRACK(DockChanged, next);
     }
 }

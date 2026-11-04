@@ -22,12 +22,12 @@
 #include "GPIO/Pin.h"
 #include "GPIO/Constants.h"
 #include "Logging/Logging.h"
-#include "Net/MqttPublisher.h"
 #include "StateMachine/Machine.h"
 #include "Flows/DirtyTank/Constants.h"
 #include "Flows/CleanTank/Constants.h"
 #include "Setup/ConfigureFlows.h"
 #include "Setup/ConfigurePins.h"
+#include "Telemetry/Track.h"
 
 namespace
 {
@@ -200,21 +200,11 @@ int ClankerCleaner::Run(int argumentCount, char** arguments)
 
     try
     {
+        TELEMETRY_TRACK(Start, settings);
+
         // Pins: the dirty tank sensor pulls LOW when wet, so a falling edge is the trigger.
         GPIO::PinInterface pins;
         ClankerCleaner::Setup::ConfigurePins(pins, settings);
-
-        // Declared before the machine so it outlives the flows.
-        std::unique_ptr<ClankerCleaner::Net::MqttPublisher> mqttPublisher;
-        if (settings.Mqtt.Enabled)
-        {
-            mqttPublisher = std::make_unique<ClankerCleaner::Net::MqttPublisher>(settings.Mqtt);
-            mqttPublisher->Start();
-        }
-        else
-        {
-            Logging::Get("Mqtt")->info("publishing off ([mqtt] enabled = false)");
-        }
 
         // Flows: Idle waits for the sensor, EmptyTank runs the pump, then back to Idle.
         StateMachine::Machine machine;
@@ -262,10 +252,6 @@ int ClankerCleaner::Run(int argumentCount, char** arguments)
         }
         // Stopping the machine aborts running flows, so states turn their outputs off first.
         machine.Stop();
-        if (mqttPublisher)
-        {
-            mqttPublisher->Stop();
-        }
         pins.StopAndWait();
         log->info("stopped");
     }
@@ -274,6 +260,10 @@ int ClankerCleaner::Run(int argumentCount, char** arguments)
         log->critical("fatal: {}", error.what());
         exitCode = EXIT_FAILURE;
     }
+
+    // After the try block, so the pins, flows and dock monitor are gone even after a failure,
+    // and what they tracked as they stopped still goes out.
+    TELEMETRY_TRACK(Stop);
 
     Logging::Shutdown();
     return exitCode;

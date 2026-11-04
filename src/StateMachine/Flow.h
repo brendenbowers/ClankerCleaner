@@ -60,8 +60,9 @@ namespace ClankerCleaner::StateMachine
         // instead of finishing the flow.
         void SetLooping(bool loops) { looping = loops; }
 
-        // Called on the machine thread whenever a state changes phase; handy for logging.
-        void SetPhaseListener(PhaseListener listener);
+        // Called on the machine thread whenever a state changes phase, in the order added;
+        // handy for logging. Add them before starting the flow.
+        void AddPhaseListener(PhaseListener listener);
 
         // Safe from any thread; the machine thread acts on them at its next step.
         bool RequestStart();
@@ -110,7 +111,7 @@ namespace ClankerCleaner::StateMachine
         std::map<std::string, std::string, std::less<>> nextOverrides;
         std::string initialStateName;
         bool looping = false;
-        PhaseListener phaseListener;
+        std::vector<PhaseListener> phaseListeners;
 
         std::atomic<bool> startRequested{false};
         std::atomic<bool> abortRequested{false};

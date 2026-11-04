@@ -28,6 +28,9 @@ namespace ClankerCleaner::Secrets
     // Our MQTT broker, for publishing status; an empty host leaves it off.
     inline constexpr const char* MqttHost = "";
     inline constexpr int MqttPort = 8883;
+    // The last six hex digits of the main board's WiFi MAC address, e.g. "f1af38". Other boards
+    // publish under <prefix>/<their id>/ instead; empty puts every board on the same topics.
+    inline constexpr const char* MqttMainBoardId = "";
     inline constexpr const char* MqttUsername = "";
     inline constexpr const char* MqttPassword = "";
     // PEM CA certificate the broker's certificate chains to, e.g. R"(-----BEGIN CERTIFICATE-----

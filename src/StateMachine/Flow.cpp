@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include "Logging/Logging.h"
+#include "Telemetry/Track.h"
 
 namespace ClankerCleaner::StateMachine
 {
@@ -58,9 +59,9 @@ namespace ClankerCleaner::StateMachine
         initialStateName = stateName;
     }
 
-    void Flow::SetPhaseListener(PhaseListener listener)
+    void Flow::AddPhaseListener(PhaseListener listener)
     {
-        phaseListener = std::move(listener);
+        phaseListeners.push_back(std::move(listener));
     }
 
     bool Flow::RequestStart()
@@ -297,10 +298,11 @@ namespace ClankerCleaner::StateMachine
             currentStateName = state.GetName();
             currentPhase = phase;
         }
-        if (phaseListener)
+        for (const PhaseListener& listener : phaseListeners)
         {
-            phaseListener(*this, state, phase);
+            listener(*this, state, phase);
         }
+        TELEMETRY_TRACK(FlowPhaseChanged, name, state.GetName(), phase, GetLastError());
     }
 
     void Flow::AbortCurrentState()

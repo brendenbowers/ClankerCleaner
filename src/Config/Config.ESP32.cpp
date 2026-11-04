@@ -4,6 +4,10 @@
 #include "Config/Config.h"
 #include "Config/Secrets.ESP32.h"
 
+#include <cstdio>
+
+#include <esp_mac.h>
+
 namespace ClankerCleaner::Config
 {
     namespace
@@ -31,6 +35,16 @@ namespace ClankerCleaner::Config
         constexpr std::chrono::seconds CleanTankSensorDebounce{10};
         constexpr std::chrono::seconds CleanTankFillRunTime{60};
         constexpr std::chrono::seconds CleanTankDetergentRunTime{15};
+
+        // The last half of the WiFi MAC address, e.g. "f1af38": tells boards apart.
+        std::string BoardId()
+        {
+            std::uint8_t mac[6] = {};
+            esp_read_mac(mac, ESP_MAC_WIFI_STA);
+            char id[7];
+            std::snprintf(id, sizeof(id), "%02x%02x%02x", mac[3], mac[4], mac[5]);
+            return id;
+        }
     }
 
     std::string DefaultPath()
@@ -75,6 +89,16 @@ namespace ClankerCleaner::Config
         settings.Mqtt.Username = Secrets::MqttUsername;
         settings.Mqtt.Password = Secrets::MqttPassword;
         settings.Mqtt.CaCertificatesPem = Secrets::MqttCaCertificate;
+        // A broker drops a client when another connects with the same ID, so each board has
+        // its own. Any board but the main one also publishes under its own topics, to keep
+        // it from overwriting the main board's retained state.
+        const std::string boardId = BoardId();
+        settings.Mqtt.ClientId += "-" + boardId;
+        const std::string mainBoardId = Secrets::MqttMainBoardId;
+        if(!mainBoardId.empty() && boardId != mainBoardId)
+        {
+            settings.Mqtt.TopicPrefix += "/" + boardId;
+        }
         // On once there's a broker to publish to.
         settings.Mqtt.Enabled = !settings.Mqtt.Host.empty();
         return settings;

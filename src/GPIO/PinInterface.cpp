@@ -2,6 +2,8 @@
 
 #include "GPIO/PinInterface.h"
 
+#include "Telemetry/Track.h"
+
 namespace ClankerCleaner::GPIO
 {
     bool PinInterface::Start()
@@ -21,6 +23,11 @@ namespace ClankerCleaner::GPIO
 
         PlatformStart();
         started = true;
+
+        for([[maybe_unused]] const auto& pinEntry : monitoredPins)
+        {
+            TELEMETRY_TRACK(SensorChanged, pinEntry.first, GetState(pinEntry.first));
+        }
         return true;
     }
 
@@ -78,6 +85,10 @@ namespace ClankerCleaner::GPIO
         }
 
         PlatformSetOutput(pin, active);
+        if(pinEntry->second.active != active)
+        {
+            TELEMETRY_TRACK(OutputChanged, pin, active);
+        }
         pinEntry->second.active = active;
         return true;
     }
@@ -100,6 +111,10 @@ namespace ClankerCleaner::GPIO
         for(auto& pinEntry : outputPins)
         {
             PlatformSetOutput(pinEntry.first, false);
+            if(pinEntry.second.active)
+            {
+                TELEMETRY_TRACK(OutputChanged, pinEntry.first, false);
+            }
             pinEntry.second.active = false;
         }
     }
@@ -138,6 +153,7 @@ namespace ClankerCleaner::GPIO
                 return;
             }
             pinEntry->second.HandleEdge(edge, timestampNs, sequence);
+            TELEMETRY_TRACK(SensorChanged, pinId, pinEntry->second.GetState());
         }
 
         sync.Set();
