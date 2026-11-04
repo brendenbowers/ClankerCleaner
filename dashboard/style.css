@@ -232,6 +232,22 @@ button {
     cursor: pointer;
 }
 
+.commands {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+button.danger {
+    background: var(--bad);
+}
+
 button.link {
     background: none;
     color: var(--accent);

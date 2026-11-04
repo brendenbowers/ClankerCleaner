@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <string_view>
 
 #include <nlohmann/json.hpp>
 
@@ -22,6 +23,8 @@ namespace ClankerCleaner::Telemetry
     {
         using json = nlohmann::json;
         using Clock = std::chrono::steady_clock;
+
+        constexpr std::string_view CommandTopicPrefix = "commands/";
 
         struct Sensor
         {
@@ -90,6 +93,7 @@ namespace ClankerCleaner::Telemetry
         {
             tracker->Publisher.Publish("outputs/" + name, "{\"on\":false}", true);
         }
+        tracker->Publisher.Subscribe(std::string(CommandTopicPrefix) + "#");
         tracker->Publisher.Start();
     }
 
@@ -203,5 +207,36 @@ namespace ClankerCleaner::Telemetry
             {"dirty_tank_full", status.IsDirtyTankFull()},
         };
         tracker->Publisher.Publish("dock", payload.dump(), true);
+    }
+
+    void CommandHandled(const std::string& command, bool accepted, const std::string& reason)
+    {
+        if (!tracker)
+        {
+            return;
+        }
+        json payload{{"command", command}, {"result", accepted ? "accepted" : "refused"}};
+        if (!reason.empty())
+        {
+            payload["reason"] = reason;
+        }
+        tracker->Publisher.Publish("command_result", payload.dump());
+    }
+
+    std::optional<std::string> TakeCommand()
+    {
+        if (!tracker)
+        {
+            return std::nullopt;
+        }
+        while (std::optional<Net::MqttMessage> message = tracker->Publisher.TakeReceived())
+        {
+            // Empty is how a retained message is cleared, and subscribers see that too.
+            if (message->Topic.starts_with(CommandTopicPrefix) && !message->Payload.empty())
+            {
+                return message->Topic.substr(CommandTopicPrefix.size());
+            }
+        }
+        return std::nullopt;
     }
 }

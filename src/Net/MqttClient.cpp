@@ -1,6 +1,7 @@
 #include "Net/MqttClient.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace ClankerCleaner::Net
 {
@@ -27,6 +28,8 @@ namespace ClankerCleaner::Net
         constexpr std::uint8_t UsernameFlag = 0x80;
         constexpr std::size_t MaxPacketSize = 1024 * 1024;
         constexpr std::size_t ReadChunkSize = 4096;
+        // Past this the oldest held message is dropped.
+        constexpr std::size_t MaxHeldMessages = 16;
 
         void AppendUint16(std::vector<std::uint8_t>& bytes, std::uint16_t value)
         {
@@ -134,6 +137,7 @@ namespace ClankerCleaner::Net
             stream.Close();
         }
         received.clear();
+        held.clear();
     }
 
     void MqttClient::Subscribe(const std::string& topic, std::uint8_t qos)
@@ -161,8 +165,7 @@ namespace ClankerCleaner::Net
                 }
                 return;
             }
-            // A message can arrive before the SUBACK; dropping it is fine for a status feed.
-            HandlePacket(*packet);
+            HoldMessage(*packet);
         }
     }
 
@@ -197,12 +200,19 @@ namespace ClankerCleaner::Net
             {
                 return;
             }
-            HandlePacket(*packet);
+            HoldMessage(*packet);
         }
     }
 
     std::optional<MqttMessage> MqttClient::Receive(std::chrono::milliseconds waitTime)
     {
+        if (!held.empty())
+        {
+            MqttMessage message = std::move(held.front());
+            held.pop_front();
+            return message;
+        }
+
         const auto deadline = std::chrono::steady_clock::now() + waitTime;
         while (true)
         {
@@ -351,6 +361,7 @@ namespace ClankerCleaner::Net
                 Fail("malformed PUBLISH");
             }
             MqttMessage message;
+            message.Retained = (packet.Header & 0x01) != 0;
             message.Topic.assign(packet.Body.begin() + 2, packet.Body.begin() + static_cast<std::ptrdiff_t>(offset));
             if (qos > 0)
             {
@@ -365,6 +376,18 @@ namespace ClankerCleaner::Net
         }
         default:
             return std::nullopt;
+        }
+    }
+
+    void MqttClient::HoldMessage(const Packet& packet)
+    {
+        if (std::optional<MqttMessage> message = HandlePacket(packet))
+        {
+            if (held.size() >= MaxHeldMessages)
+            {
+                held.pop_front();
+            }
+            held.push_back(std::move(*message));
         }
     }
 

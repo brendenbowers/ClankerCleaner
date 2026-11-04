@@ -37,6 +37,9 @@
             <label class="check">
                 <input name="remember" type="checkbox" checked> Remember on this device
             </label>
+            <label class="check">
+                <input name="controls" type="checkbox"> This login can send commands
+            </label>
             <p class="error" id="login-error" hidden></p>
             <button type="submit">Connect</button>
         </form>
@@ -112,6 +115,18 @@
                     <ellipse id="robot" class="robot" cx="180" cy="262" rx="74" ry="14"/>
                 </svg>
                 <p class="dock-caption" id="dock-caption">Waiting for the controller…</p>
+            </section>
+
+            <section class="card wide" id="controls" hidden>
+                <h2>Controls</h2>
+                <div class="commands">
+                    <button type="button" data-command="drain" disabled>Drain and rinse</button>
+                    <button type="button" data-command="rinse" disabled>Rinse</button>
+                    <button type="button" data-command="fill" disabled>Fill</button>
+                    <button type="button" class="danger" data-command="stop" disabled>Stop</button>
+                    <button type="button" data-command="resume" disabled>Resume</button>
+                </div>
+                <p class="muted">Runs what the sensors would, with the same checks, and is refused while that tank is busy. Stop turns everything off and holds the automatic runs until Resume.</p>
             </section>
 
             <section class="card">

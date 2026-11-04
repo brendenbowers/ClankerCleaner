@@ -13,10 +13,11 @@ set(CLANKER_VERSION "${CMAKE_MATCH_1}")
 unset(_clanker_top_level)
 unset(_clanker_match)
 
-# Publishing to an MQTT broker. Off, CLANKER_TRACK is a no-op and the publisher isn't built.
+# Publishing to and taking commands from an MQTT broker. Off, TELEMETRY_TRACK is a no-op and
+# the publisher and command flow aren't built.
 # option() isn't allowed in script mode, which ESP-IDF uses for its first pass.
 if(NOT CMAKE_SCRIPT_MODE_FILE)
-    option(CLANKER_MQTT "Publish status and events over MQTT" ON)
+    option(CLANKER_MQTT "Publish status and take commands over MQTT" ON)
 endif()
 if(NOT DEFINED CLANKER_MQTT)
     set(CLANKER_MQTT ON)
@@ -46,8 +47,8 @@ function(clanker_collect_sources platform sourcesVar headersVar)
     endforeach()
 
     if(NOT CLANKER_MQTT)
-        list(FILTER sources EXCLUDE REGEX "/(Telemetry/Telemetry|Net/MqttPublisher)\\.cpp$")
-        list(FILTER headers EXCLUDE REGEX "/Net/MqttPublisher\\.h$")
+        list(FILTER sources EXCLUDE REGEX "/(Telemetry/Telemetry|Net/MqttPublisher|Flows/Commands/.*)\\.cpp$")
+        list(FILTER headers EXCLUDE REGEX "/(Net/MqttPublisher|Flows/Commands/.*)\\.h$")
     endif()
 
     set(${sourcesVar} ${sources} PARENT_SCOPE)

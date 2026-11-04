@@ -23,8 +23,6 @@
 #include "GPIO/Constants.h"
 #include "Logging/Logging.h"
 #include "StateMachine/Machine.h"
-#include "Flows/DirtyTank/Constants.h"
-#include "Flows/CleanTank/Constants.h"
 #include "Setup/ConfigureFlows.h"
 #include "Setup/ConfigurePins.h"
 #include "Telemetry/Track.h"
@@ -217,11 +215,11 @@ int ClankerCleaner::Run(int argumentCount, char** arguments)
             dockMonitor->Start();
         }
         machine.Start();
-        machine.StartFlow(ClankerCleaner::Flows::DirtyTank::Constants::State::FLOWNAME);
-        machine.StartFlow(ClankerCleaner::Flows::CleanTank::Constants::State::FLOWNAME);
+        machine.StartAll();
         log->info("state machine started");
 
-        // Run until a stop signal, or until every flow has finished or aborted.
+        // Run until a stop signal, or until every flow has finished or aborted. The command
+        // flow never ends, so with it the tank flows stay stopped until a resume command.
         bool flowsEnded = false;
         while (run && !flowsEnded)
         {

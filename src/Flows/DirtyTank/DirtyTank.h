@@ -21,5 +21,10 @@ namespace ClankerCleaner::Flows::DirtyTank
         Dreame::DockMonitor* dockMonitor = nullptr;
         // Whether the mops are being washed; never watching (always false) without push updates.
         DockWatch dock;
+
+        // Set by the command flow, only while Idle is running, and taken by Idle: the same states
+        // run as for the sensor, so they keep the same checks. Machine thread only.
+        bool drainRequested = false;
+        bool rinseRequested = false;
     };
 }

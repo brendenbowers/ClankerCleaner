@@ -15,6 +15,12 @@
 #include "Flows/CleanTank/States/FillTank.h"
 #include "Flows/CleanTank/States/AddCleaner.h"
 
+#if CLANKER_MQTT
+#include "Flows/Commands/Commands.h"
+#include "Flows/Commands/Constants.h"
+#include "Flows/Commands/States/Listen.h"
+#endif
+
 #include "Logging/Logging.h"
 
 namespace ClankerCleaner::Setup
@@ -110,5 +116,21 @@ namespace ClankerCleaner::Setup
             flow.SetLooping(true);
             LogPhases(flow);
         }
+
+#if CLANKER_MQTT
+        // Added last, so the tank flows have taken the last command before it handles the next.
+        if(settings.Mqtt.Enabled)
+        {
+            namespace Commands = Flows::Commands;
+
+            Commands::CommandFlow& flow = machine.AddFlow<Commands::CommandFlow>(Commands::Constants::State::FLOWNAME);
+            flow.pinMonitor = &pins;
+            flow.settings = &settings;
+            flow.dirtyTank = machine.FindFlow<Flows::DirtyTank::DirtyTankFlow>(Flows::DirtyTank::Constants::State::FLOWNAME);
+            flow.cleanTank = machine.FindFlow<Flows::CleanTank::CleanTankFlow>(Flows::CleanTank::Constants::State::FLOWNAME);
+            flow.AddState<Commands::States::Listen>();
+            LogPhases(flow);
+        }
+#endif
     }
 }

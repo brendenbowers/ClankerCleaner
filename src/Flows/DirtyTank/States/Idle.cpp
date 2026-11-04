@@ -5,6 +5,7 @@
 #include "GPIO/Constants.h"
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 namespace ClankerCleaner::Flows::DirtyTank::States
@@ -24,6 +25,15 @@ namespace ClankerCleaner::Flows::DirtyTank::States
 
     Transition Idle::Run(DirtyTankFlow& flow)
     {
+        if(std::exchange(flow.drainRequested, false))
+        {
+            return Transition::Next();
+        }
+        if(std::exchange(flow.rinseRequested, false))
+        {
+            return Transition::GoTo(Constants::State::RINSE_TANK_STATE);
+        }
+
         if(flow.dock.TakeWashFinished())
         {
             return Transition::Next();

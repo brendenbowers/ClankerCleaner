@@ -15,9 +15,15 @@
 //   flows/<flow>/runs    {"state":"...","seconds":92.5,"result":"done"} as each state ends
 //                        ("aborted", with "error", if it aborted)
 //   dock                 the robot and dock status from the cloud       retained, on each change
+//   command_result       {"command":"rinse","result":"refused","reason":"..."}  after each
+//                        command ("accepted" has no reason)
+//
+// Received, one topic per command, with any payload but an empty one. See Flows/Commands.
+//   commands/<name>      drain, rinse, fill, stop or resume
 #if CLANKER_MQTT
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace ClankerCleaner::Config
@@ -49,6 +55,10 @@ namespace ClankerCleaner::Telemetry
     void OutputChanged(std::uint32_t pin, bool active);
     void FlowPhaseChanged(const std::string& flow, const std::string& state, StateMachine::StatePhase phase, const std::string& error);
     void DockChanged(const Dreame::DockStatus& status);
+    void CommandHandled(const std::string& command, bool accepted, const std::string& reason);
+
+    // The name of the oldest command received and not yet taken. Safe from any thread.
+    std::optional<std::string> TakeCommand();
 }
 
 #define TELEMETRY_TRACK(event, ...) ::ClankerCleaner::Telemetry::event(__VA_ARGS__)

@@ -1,7 +1,9 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -39,6 +41,8 @@ namespace ClankerCleaner::Net
     {
         std::string Topic;
         std::string Payload;
+        // The broker's stored copy, sent because we subscribed, rather than a new message.
+        bool Retained = false;
     };
 
     // The broker answered CONNACK with a non-zero return code, e.g. 4 (bad username or
@@ -68,11 +72,11 @@ namespace ClankerCleaner::Net
         void Subscribe(const std::string& topic, std::uint8_t qos = 0);
 
         // At QoS 1, waits for the PUBACK. QoS 2 is sent as 1. Messages that arrive while
-        // waiting are dropped, as in Subscribe.
+        // waiting, here or in Subscribe, are held for Receive.
         void Publish(const std::string& topic, const std::string& payload, std::uint8_t qos = 0, bool retain = false);
 
         // Returns the next message, or nothing if none arrives within the timeout. Sends
-        // keep-alive pings while waiting.
+        // keep-alive pings while waiting. A timeout of zero only returns what's already held.
         std::optional<MqttMessage> Receive(std::chrono::milliseconds timeout);
 
     private:
@@ -88,11 +92,14 @@ namespace ClankerCleaner::Net
         std::optional<Packet> ReadPacket(std::chrono::steady_clock::time_point deadline);
         // Handles pings and acks; returns a message if the packet was a PUBLISH.
         std::optional<MqttMessage> HandlePacket(const Packet& packet);
+        // HandlePacket for a packet read while waiting for an ack; keeps any message for Receive.
+        void HoldMessage(const Packet& packet);
         void Fail(const std::string& message);
 
         TlsStream stream;
         std::vector<std::uint8_t> received;
         std::vector<std::uint8_t> readBuffer;
+        std::deque<MqttMessage> held;
         std::chrono::seconds keepAlive{60};
         std::chrono::seconds timeout{10};
         std::chrono::steady_clock::time_point lastSent{};

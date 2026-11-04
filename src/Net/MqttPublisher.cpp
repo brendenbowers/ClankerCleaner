@@ -7,14 +7,13 @@
 #include <utility>
 
 #include "Logging/Logging.h"
-#include "Net/MqttClient.h"
 #include "Threading/ManualResetEvent.h"
 
 namespace ClankerCleaner::Net
 {
     namespace
     {
-        // How long Run waits for incoming packets (pings) before checking the queue again,
+        // How long Run waits for incoming packets before checking the queue again,
         // so it's also the most a queued message waits.
         constexpr auto ReceiveSlice = std::chrono::milliseconds(250);
         constexpr auto FirstRetryDelay = std::chrono::seconds(5);
@@ -29,6 +28,11 @@ namespace ClankerCleaner::Net
     MqttPublisher::~MqttPublisher()
     {
         Stop();
+    }
+
+    void MqttPublisher::Subscribe(std::string topic)
+    {
+        subscriptions.push_back(std::move(topic));
     }
 
     void MqttPublisher::Start()
@@ -56,6 +60,38 @@ namespace ClankerCleaner::Net
             queue.pop_front();
         }
         queue.push_back(Outgoing{topic, std::move(payload), retain});
+    }
+
+    std::optional<MqttMessage> MqttPublisher::TakeReceived()
+    {
+        std::lock_guard<std::mutex> lock(receivedMutex);
+        if (received.empty())
+        {
+            return std::nullopt;
+        }
+        MqttMessage message = std::move(received.front());
+        received.pop_front();
+        return message;
+    }
+
+    void MqttPublisher::StoreReceived(MqttMessage message)
+    {
+        if (message.Retained)
+        {
+            Logging::Get("Mqtt")->warn("ignoring retained message on {}", message.Topic);
+            return;
+        }
+        if (!settings.TopicPrefix.empty() && message.Topic.starts_with(settings.TopicPrefix + "/"))
+        {
+            message.Topic.erase(0, settings.TopicPrefix.size() + 1);
+        }
+
+        std::lock_guard<std::mutex> lock(receivedMutex);
+        if (received.size() >= MaxReceived)
+        {
+            received.pop_front();
+        }
+        received.push_back(std::move(message));
     }
 
     std::string MqttPublisher::FullTopic(const std::string& topic) const
@@ -88,6 +124,10 @@ namespace ClankerCleaner::Net
                 options.WillQos = 1;
                 options.WillRetain = true;
                 mqtt.Connect(options);
+                for (const std::string& topic : subscriptions)
+                {
+                    mqtt.Subscribe(FullTopic(topic), 1);
+                }
                 mqtt.Publish(statusTopic, "online", 1, true);
 
                 connected = true;
@@ -109,22 +149,25 @@ namespace ClankerCleaner::Net
                     {
                         break;
                     }
-                    if (!next)
+                    if (next)
                     {
-                        // Nothing is subscribed, so this only answers the keep-alive pings.
-                        mqtt.Receive(ReceiveSlice);
-                        continue;
+                        try
+                        {
+                            mqtt.Publish(FullTopic(next->Topic), next->Payload, 1, next->Retain);
+                        }
+                        catch (const std::exception&)
+                        {
+                            // Send it again after reconnecting.
+                            std::lock_guard<std::mutex> lock(queueMutex);
+                            queue.push_front(std::move(*next));
+                            throw;
+                        }
                     }
-                    try
+                    // Between publishes too, so a busy queue doesn't hold up what comes in.
+                    const auto wait = next ? std::chrono::milliseconds(0) : ReceiveSlice;
+                    if (std::optional<MqttMessage> message = mqtt.Receive(wait))
                     {
-                        mqtt.Publish(FullTopic(next->Topic), next->Payload, 1, next->Retain);
-                    }
-                    catch (const std::exception&)
-                    {
-                        // Send it again after reconnecting.
-                        std::lock_guard<std::mutex> lock(queueMutex);
-                        queue.push_front(std::move(*next));
-                        throw;
+                        StoreReceived(std::move(*message));
                     }
                 }
 

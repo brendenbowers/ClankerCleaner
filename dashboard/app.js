@@ -1,6 +1,6 @@
 // Clanker Cleaner dashboard: subscribes to what the controller publishes (see
-// src/Telemetry/Track.h) and shows it. Talks straight to the broker over MQTT on
-// WebSockets; there's no server of its own.
+// src/Telemetry/Track.h) and shows it, and can send it commands. Talks straight to the
+// broker over MQTT on WebSockets; there's no server of its own.
 
 const TopicPrefix = "clanker-cleaner";
 const SettingsKey = "clanker-dashboard.settings";
@@ -16,6 +16,13 @@ const outputNames = {
 const flowNames = {
     DirtyTankFlow: "Dirty tank",
     CleanTankFlow: "Clean tank",
+};
+const commandNames = {
+    drain: "Drain and rinse",
+    rinse: "Rinse",
+    fill: "Fill",
+    stop: "Stop",
+    resume: "Resume",
 };
 const stateNames = {
     DIRTY_TANK_IDLE: "Waiting",
@@ -257,6 +264,10 @@ function renderBoard() {
     } else {
         setPill("board-pill", `board: ${state.board}`, state.board === "online" ? "good" : "bad");
     }
+    const reachable = Boolean(client && client.connected) && state.board === "online";
+    document.querySelectorAll("[data-command]").forEach((button) => {
+        button.disabled = !reachable;
+    });
 }
 
 function renderActivity() {
@@ -271,7 +282,7 @@ function renderActivity() {
         const what = document.createElement("span");
         what.textContent = entry.text;
         const duration = document.createElement("span");
-        duration.textContent = formatDuration(entry.seconds);
+        duration.textContent = entry.seconds === undefined ? "" : formatDuration(entry.seconds);
         item.append(time, what, duration);
         if (entry.error) {
             const error = document.createElement("span");
@@ -339,8 +350,16 @@ function handleMessage(topic, payloadBytes, packet) {
         }
     } else if (parts[0] === "dock") {
         state.dock = payload;
+    } else if (parts[0] === "command_result" && !packet.retain) {
+        const name = commandNames[payload.command] || payload.command;
+        addActivity({ at: Date.now(), text: `${name}: ${payload.result}`, error: payload.reason });
     }
     renderAll();
+}
+
+function sendCommand(command) {
+    // Never retained: the board would ignore it, and the broker refuses it from this login.
+    client.publish(`${TopicPrefix}/commands/${command}`, "1", { qos: 1, retain: false });
 }
 
 // --- Connection ------------------------------------------------------------------------
@@ -351,6 +370,7 @@ function showLogin(error) {
     form.url.value = settings.url || "";
     form.username.value = settings.username || "dashboard";
     form.password.value = settings.password || "";
+    form.controls.checked = Boolean(settings.controls);
     $("login-error").hidden = !error;
     $("login-error").textContent = error || "";
     form.hidden = false;
@@ -364,6 +384,7 @@ function connect(settings) {
     setPill("broker-pill", "broker: connecting", "warn");
     $("login").hidden = true;
     $("status").hidden = false;
+    $("controls").hidden = !settings.controls;
     renderAll();
     renderActivity();
 
@@ -389,9 +410,13 @@ function connect(settings) {
         $("cert-help").hidden = true;
         setPill("broker-pill", "broker: connected", "good");
         client.subscribe(`${TopicPrefix}/#`, { qos: 1 });
+        renderBoard();
     });
     client.on("reconnect", () => setPill("broker-pill", "broker: reconnecting", "warn"));
-    client.on("offline", () => setPill("broker-pill", "broker: offline", "bad"));
+    client.on("offline", () => {
+        setPill("broker-pill", "broker: offline", "bad");
+        renderBoard();
+    });
     // An untrusted certificate looks like any other failed connection, so the help shows
     // whenever the first connection hasn't come up.
     client.on("close", () => {
@@ -418,7 +443,7 @@ function start() {
         const form = event.target;
         // The broker's address isn't in the source, so it's always kept for next time;
         // the password only if asked.
-        const saved = { url: form.url.value.trim(), username: form.username.value.trim() };
+        const saved = { url: form.url.value.trim(), username: form.username.value.trim(), controls: form.controls.checked };
         const settings = { ...saved, password: form.password.value };
         saveJson(SettingsKey, form.remember.checked ? settings : saved);
         connect(settings);
@@ -433,6 +458,15 @@ function start() {
         saveJson(SettingsKey, saved);
         setPill("broker-pill", "broker: off", "");
         showLogin();
+    });
+    document.querySelectorAll("[data-command]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const command = button.dataset.command;
+            // Stop is never held up by a question.
+            if (command === "stop" || confirm(`${commandNames[command]} now?`)) {
+                sendCommand(command);
+            }
+        });
     });
     $("clear-activity").addEventListener("click", () => {
         activity = [];
