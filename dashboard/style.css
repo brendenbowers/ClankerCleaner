@@ -339,20 +339,6 @@ button.link {
     font-size: 0.85rem;
 }
 
-/* Keep the product photo and its cutaway legible in either colour scheme. */
-#dock-svg {
-    background: #fff;
-    border-radius: 10px;
-    --muted: #475569;
-    --card: #fff;
-    --dock-edge: #94a3b8;
-    --pipe: #cbd5e1;
-    --clean-water: #60a5fa;
-    --dirty-water: #a16207;
-    --good: #15803d;
-    --good-bg: #dcfce7;
-}
-
 #dock-svg.has-picture #mova-picture,
 #dock-svg.has-picture #mova-parked-picture,
 #dock-svg.docked #mova-picture,
@@ -362,7 +348,7 @@ button.link {
 }
 
 .tank {
-    fill: #f8fafc;
+    fill: var(--tank);
     fill-opacity: 0.65;
     stroke: var(--dock-edge);
     stroke-width: 2;
