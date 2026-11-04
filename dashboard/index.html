@@ -126,6 +126,11 @@
                     <button type="button" class="danger" data-command="stop" disabled>Stop</button>
                     <button type="button" data-command="resume" disabled>Resume</button>
                 </div>
+                <div class="confirm" id="command-confirm" hidden>
+                    <span id="command-confirm-text" aria-live="polite"></span>
+                    <button type="button" id="command-yes">Yes</button>
+                    <button type="button" class="quiet" id="command-cancel">Cancel</button>
+                </div>
                 <p class="muted">Runs what the sensors would, with the same checks, and is refused while that tank is busy. Stop turns everything off and holds the automatic runs until Resume.</p>
             </section>
 

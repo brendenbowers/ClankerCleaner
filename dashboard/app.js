@@ -6,6 +6,7 @@ const TopicPrefix = "clanker-cleaner";
 const SettingsKey = "clanker-dashboard.settings";
 const ActivityKey = "clanker-dashboard.activity";
 const MaxActivity = 100;
+const ConfirmSeconds = 10;
 
 const outputNames = {
     pump: "Pump",
@@ -45,6 +46,8 @@ const state = {
 
 let client = null;
 let activity = loadJson(ActivityKey, []);
+let pendingCommand = null;
+let pendingTimer = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -268,6 +271,9 @@ function renderBoard() {
     document.querySelectorAll("[data-command]").forEach((button) => {
         button.disabled = !reachable;
     });
+    if (!reachable) {
+        cancelCommand();
+    }
 }
 
 function renderActivity() {
@@ -360,6 +366,22 @@ function handleMessage(topic, payloadBytes, packet) {
 function sendCommand(command) {
     // Never retained: the board would ignore it, and the broker refuses it from this login.
     client.publish(`${TopicPrefix}/commands/${command}`, "1", { qos: 1, retain: false });
+}
+
+// Asks in the Controls card, below the buttons, so a double tap can't land on Yes. A
+// question left unanswered goes away, so nobody confirms something they asked for earlier.
+function askCommand(command) {
+    cancelCommand();
+    pendingCommand = command;
+    pendingTimer = setTimeout(cancelCommand, ConfirmSeconds * 1000);
+    $("command-confirm-text").textContent = `${commandNames[command]} now?`;
+    $("command-confirm").hidden = false;
+}
+
+function cancelCommand() {
+    clearTimeout(pendingTimer);
+    pendingCommand = null;
+    $("command-confirm").hidden = true;
 }
 
 // --- Connection ------------------------------------------------------------------------
@@ -463,11 +485,22 @@ function start() {
         button.addEventListener("click", () => {
             const command = button.dataset.command;
             // Stop is never held up by a question.
-            if (command === "stop" || confirm(`${commandNames[command]} now?`)) {
+            if (command === "stop") {
+                cancelCommand();
                 sendCommand(command);
+            } else {
+                askCommand(command);
             }
         });
     });
+    $("command-yes").addEventListener("click", () => {
+        const command = pendingCommand;
+        cancelCommand();
+        if (command) {
+            sendCommand(command);
+        }
+    });
+    $("command-cancel").addEventListener("click", cancelCommand);
     $("clear-activity").addEventListener("click", () => {
         activity = [];
         saveJson(ActivityKey, activity);

@@ -239,9 +239,29 @@ button {
     margin-bottom: 8px;
 }
 
+.confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    background: var(--idle-bg);
+}
+
+.confirm span {
+    flex: 1 1 6rem;
+}
+
 button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+button.quiet {
+    background: none;
+    color: var(--text);
 }
 
 button.danger {
