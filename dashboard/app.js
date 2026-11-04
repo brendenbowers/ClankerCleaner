@@ -5,8 +5,13 @@
 const TopicPrefix = "clanker-cleaner";
 const SettingsKey = "clanker-dashboard.settings";
 const ActivityKey = "clanker-dashboard.activity";
+const DockPictureKey = "clanker-dashboard.dock-picture";
 const MaxActivity = 100;
 const ConfirmSeconds = 10;
+// Longest side of a chosen dock picture, small enough to fit in localStorage.
+const MaxDockPicture = 800;
+// The broker only lets this login subscribe; a publish from it would get it disconnected.
+const WatchOnlyUser = "dashboard";
 
 const outputNames = {
     pump: "Pump",
@@ -45,6 +50,7 @@ const state = {
 };
 
 let client = null;
+let canCommand = false;
 let activity = loadJson(ActivityKey, []);
 let pendingCommand = null;
 let pendingTimer = null;
@@ -216,7 +222,9 @@ function renderDockView() {
     const filling = on("clean_tank_fill");
     const dosing = on("cleaner_dosing");
     const washing = Boolean(state.dock && state.dock.washing_mop);
-    const docked = Boolean(state.dock && !state.dock.cleaning);
+    const docked = Boolean(state.dock && state.dock.online && !state.dock.cleaning &&
+        (washing || state.dock.status === "charging" ||
+            ["charging", "charged", "smart charging", "washing", "washing paused", "auto emptying", "adding clean water"].includes(state.dock.robot)));
 
     svg.classList.toggle("draining", draining);
     svg.classList.toggle("rinsing", rinsing);
@@ -261,13 +269,39 @@ function renderDockView() {
     $("dock-caption").textContent = caption;
 }
 
+function showDockPicture(url) {
+    $("dock-picture").setAttribute("href", url || "");
+    $("dock-svg").classList.toggle("has-picture", Boolean(url));
+    $("dock-picture-remove").hidden = !url;
+}
+
+// The picture stays in this browser: it's never in the repo or sent anywhere, so each
+// device chooses its own.
+function chooseDockPicture(file) {
+    const source = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+        const scale = Math.min(1, MaxDockPicture / Math.max(image.width, image.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(image.width * scale);
+        canvas.height = Math.round(image.height * scale);
+        canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+        const url = canvas.toDataURL("image/png");
+        URL.revokeObjectURL(source);
+        saveJson(DockPictureKey, url);
+        showDockPicture(url);
+    };
+    image.onerror = () => URL.revokeObjectURL(source);
+    image.src = source;
+}
+
 function renderBoard() {
     if (state.board === null) {
         setPill("board-pill", "board: ?", "");
     } else {
         setPill("board-pill", `board: ${state.board}`, state.board === "online" ? "good" : "bad");
     }
-    const reachable = Boolean(client && client.connected) && state.board === "online";
+    const reachable = canCommand && Boolean(client && client.connected) && state.board === "online";
     document.querySelectorAll("[data-command]").forEach((button) => {
         button.disabled = !reachable;
     });
@@ -392,7 +426,6 @@ function showLogin(error) {
     form.url.value = settings.url || "";
     form.username.value = settings.username || "dashboard";
     form.password.value = settings.password || "";
-    form.controls.checked = Boolean(settings.controls);
     $("login-error").hidden = !error;
     $("login-error").textContent = error || "";
     form.hidden = false;
@@ -406,7 +439,8 @@ function connect(settings) {
     setPill("broker-pill", "broker: connecting", "warn");
     $("login").hidden = true;
     $("status").hidden = false;
-    $("controls").hidden = !settings.controls;
+    canCommand = settings.username !== WatchOnlyUser;
+    $("read-only").hidden = canCommand;
     renderAll();
     renderActivity();
 
@@ -465,7 +499,7 @@ function start() {
         const form = event.target;
         // The broker's address isn't in the source, so it's always kept for next time;
         // the password only if asked.
-        const saved = { url: form.url.value.trim(), username: form.username.value.trim(), controls: form.controls.checked };
+        const saved = { url: form.url.value.trim(), username: form.username.value.trim() };
         const settings = { ...saved, password: form.password.value };
         saveJson(SettingsKey, form.remember.checked ? settings : saved);
         connect(settings);
@@ -501,6 +535,18 @@ function start() {
         }
     });
     $("command-cancel").addEventListener("click", cancelCommand);
+    $("dock-picture-choose").addEventListener("click", () => $("dock-picture-file").click());
+    $("dock-picture-file").addEventListener("change", (event) => {
+        if (event.target.files[0]) {
+            chooseDockPicture(event.target.files[0]);
+        }
+        event.target.value = "";
+    });
+    $("dock-picture-remove").addEventListener("click", () => {
+        saveJson(DockPictureKey, null);
+        showDockPicture(null);
+    });
+    showDockPicture(loadJson(DockPictureKey, null));
     $("clear-activity").addEventListener("click", () => {
         activity = [];
         saveJson(ActivityKey, activity);

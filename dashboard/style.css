@@ -239,6 +239,11 @@ button {
     margin-bottom: 8px;
 }
 
+.notice-text {
+    margin: 0 0 8px;
+    color: var(--warn);
+}
+
 .confirm {
     display: flex;
     flex-wrap: wrap;
@@ -295,6 +300,7 @@ button.link {
     --dirty-water: #a16207;
     --detergent: #a855f7;
     --robot: #94a3b8;
+    --recess: #cbd5e1;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -307,6 +313,7 @@ button.link {
         --dirty-water: #92400e;
         --detergent: #c084fc;
         --robot: #475569;
+        --recess: #0b1120;
     }
 }
 
@@ -324,14 +331,39 @@ button.link {
     color: var(--muted);
 }
 
-.dock-body {
-    fill: var(--dock-body);
-    stroke: var(--dock-edge);
-    stroke-width: 2;
+.dock-options {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin: 8px 0 0;
+    font-size: 0.85rem;
+}
+
+/* Keep the product photo and its cutaway legible in either colour scheme. */
+#dock-svg {
+    background: #fff;
+    border-radius: 10px;
+    --muted: #475569;
+    --card: #fff;
+    --dock-edge: #94a3b8;
+    --pipe: #cbd5e1;
+    --clean-water: #60a5fa;
+    --dirty-water: #a16207;
+    --good: #15803d;
+    --good-bg: #dcfce7;
+}
+
+#dock-svg.has-picture #mova-picture,
+#dock-svg.has-picture #mova-parked-picture,
+#dock-svg.docked #mova-picture,
+#dock-svg:not(.docked) #mova-parked-picture,
+#dock-svg:not(.has-picture) #dock-picture {
+    display: none;
 }
 
 .tank {
-    fill: var(--tank);
+    fill: #f8fafc;
+    fill-opacity: 0.65;
     stroke: var(--dock-edge);
     stroke-width: 2;
 }
@@ -402,14 +434,42 @@ button.link {
 
 .label {
     fill: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
     text-anchor: middle;
 }
 
-.robot {
-    fill: var(--robot);
-    opacity: 0;
-    transition: opacity 0.5s;
+/* The pump and valves: drawn in the colours of a part that's on while it runs. */
+.part circle, .part path {
+    fill: var(--card);
+    stroke: var(--muted);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    transition: fill 0.3s, stroke 0.3s;
+}
+
+.part .impeller {
+    fill: none;
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+#dock-svg.filling .fill-valve path,
+#dock-svg.rinsing .rinse-valve path,
+#dock-svg.draining .drain-pump *,
+#dock-svg.dosing .dose-pump * {
+    stroke: var(--good);
+}
+
+#dock-svg.filling .fill-valve path,
+#dock-svg.rinsing .rinse-valve path,
+#dock-svg.draining .drain-pump circle,
+#dock-svg.dosing .dose-pump circle {
+    fill: var(--good-bg);
+}
+
+#dock-svg.draining .drain-pump .impeller,
+#dock-svg.dosing .dose-pump .impeller {
+    animation: spin 1s linear infinite;
 }
 
 .drops circle {
@@ -421,7 +481,6 @@ button.link {
 .wash-bubbles circle { fill: var(--clean-water); }
 
 /* States, set on the svg by app.js. */
-#dock-svg.docked .robot { opacity: 1; }
 #dock-svg.filling .fill-flow,
 #dock-svg.rinsing .rinse-flow,
 #dock-svg.draining .drain-flow,
@@ -434,6 +493,10 @@ button.link {
 
 .drops circle:nth-child(2) { animation-delay: 0.4s !important; }
 .drops circle:nth-child(3) { animation-delay: 0.8s !important; }
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
 
 @keyframes flow {
     to { stroke-dashoffset: -32; }
