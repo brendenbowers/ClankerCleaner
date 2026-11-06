@@ -5,6 +5,7 @@
 #include "Flows/CleanTank/Constants.h"
 #include "Flows/Commands/Constants.h"
 #include "Flows/DirtyTank/Constants.h"
+#include "StateMachine/Context/ReturnToIdle.h"
 #include "GPIO/Pin.h"
 #include "Logging/Logging.h"
 #include "Telemetry/Track.h"
@@ -125,6 +126,20 @@ namespace ClankerCleaner::Flows::Commands::States
                 return "clean tank is already full";
             }
             flow.cleanTank->fillRequested = true;
+            return {};
+        }
+
+        if(command == Command::ADD_CLEANER)
+        {
+            std::string busy = WhyNotIdle(*flow.cleanTank, cleanIdle);
+            if(!busy.empty())
+            {
+                return busy;
+            }
+            if(!flow.cleanTank->TryTransitionTo(Flows::CleanTank::Constants::State::ADD_CLEANER_STATE, StateMachine::Context::ReturnToIdle::Default))
+            {
+                return "unable to add cleaner";
+            }
             return {};
         }
 

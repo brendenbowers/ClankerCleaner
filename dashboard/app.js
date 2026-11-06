@@ -10,8 +10,9 @@ const MaxActivity = 100;
 const ConfirmSeconds = 10;
 // Longest side of a chosen dock picture, small enough to fit in localStorage.
 const MaxDockPicture = 800;
-// The broker only lets this login subscribe; a publish from it would get it disconnected.
-const WatchOnlyUser = "dashboard";
+const RightsCheckSeconds = 20;
+// MQTT 5's reason code for a publish this login isn't allowed to make.
+const NotAuthorized = 135;
 
 const outputNames = {
     pump: "Pump",
@@ -27,6 +28,7 @@ const commandNames = {
     drain: "Drain and rinse",
     rinse: "Rinse",
     fill: "Fill",
+    add_cleaner: "Add Cleaner",
     stop: "Stop",
     resume: "Resume",
 };
@@ -37,7 +39,7 @@ const stateNames = {
     EMPTY_RINSED_TANK: "Emptying the rinse",
     CLEAN_TANK_IDLE: "Waiting",
     FILL_TANK: "Filling",
-    ADD_CLEANER: "Adding detergent",
+    ADD_CLEANER: "Adding cleaner",
 };
 
 // Latest values, plus when we saw each change (retained values arrive with no time).
@@ -432,6 +434,51 @@ function showLogin(error) {
     $("status").hidden = true;
 }
 
+// MQTT has no way to ask what a login may do, but over MQTT 5 the broker answers a publish
+// it forbids with a reason code. It then disconnects that login, so this asks on a
+// connection of its own. The message is empty, which the board ignores. With no answer the
+// buttons stay off, and the next reconnect asks again.
+function checkCommandRights(settings, owner, onKnown) {
+    const check = mqtt.connect(settings.url, {
+        username: settings.username,
+        password: settings.password,
+        clientId: "dashboard-check-" + Math.random().toString(16).slice(2, 10),
+        protocolVersion: 5,
+        reconnectPeriod: 0,
+        connectTimeout: 15000,
+        clean: true,
+    });
+    let finished = false;
+    const finish = (allowed) => {
+        if (finished) {
+            return;
+        }
+        finished = true;
+        clearTimeout(timer);
+        check.end(true);
+        // Signed out or connected as someone else since this started.
+        if (allowed === null || client !== owner) {
+            return;
+        }
+        onKnown();
+        canCommand = allowed;
+        $("read-only").hidden = allowed;
+        renderBoard();
+    };
+    const timer = setTimeout(() => finish(null), RightsCheckSeconds * 1000);
+    check.on("error", () => finish(null));
+    check.on("close", () => finish(null));
+    check.on("connect", () => {
+        check.publish(`${TopicPrefix}/commands/check`, "", { qos: 1, retain: false }, (error) => {
+            if (!error) {
+                finish(true);
+            } else {
+                finish(error.code === NotAuthorized ? false : null);
+            }
+        });
+    });
+}
+
 function connect(settings) {
     if (client) {
         client.end(true);
@@ -439,8 +486,8 @@ function connect(settings) {
     setPill("broker-pill", "broker: connecting", "warn");
     $("login").hidden = true;
     $("status").hidden = false;
-    canCommand = settings.username !== WatchOnlyUser;
-    $("read-only").hidden = canCommand;
+    canCommand = false;
+    $("read-only").hidden = true;
     renderAll();
     renderActivity();
 
@@ -451,6 +498,7 @@ function connect(settings) {
     $("cert-help").hidden = true;
 
     let connectedOnce = false;
+    let rightsKnown = false;
     client = mqtt.connect(settings.url, {
         username: settings.username,
         password: settings.password,
@@ -467,6 +515,11 @@ function connect(settings) {
         setPill("broker-pill", "broker: connected", "good");
         client.subscribe(`${TopicPrefix}/#`, { qos: 1 });
         renderBoard();
+        if (!rightsKnown) {
+            checkCommandRights(settings, client, () => {
+                rightsKnown = true;
+            });
+        }
     });
     client.on("reconnect", () => setPill("broker-pill", "broker: reconnecting", "warn"));
     client.on("offline", () => {

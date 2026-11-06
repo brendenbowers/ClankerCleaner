@@ -1,6 +1,6 @@
 // Caches the app so it opens (and installs) without a network; the live status still
 // needs the broker. Bump Version when the files change, so old caches are dropped.
-const Version = "v15";
+const Version = "v16";
 const AppFiles = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest", "icon.svg", "assets/mova-p10-ultra-transparent.png", "assets/mova-p10-ultra-parked-transparent.png"];
 const MqttLibrary = "https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js";
 

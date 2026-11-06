@@ -90,6 +90,8 @@ namespace ClankerCleaner::StateMachine
         const TContext* GetContext() const { return std::any_cast<TContext>(&context); }
         bool HasContext() const { return context.has_value(); }
 
+        bool TryTransitionTo(std::string_view stateName, std::any context = {});
+
     private:
         friend class Machine;
 

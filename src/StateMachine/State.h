@@ -34,6 +34,7 @@ namespace ClankerCleaner::StateMachine
             Next,
             GoTo,
             Finish,
+            Restart,
             Abort
         };
 
@@ -43,6 +44,7 @@ namespace ClankerCleaner::StateMachine
         static Transition GoTo(std::string targetState, std::any context = {}) { return Transition(Kind::GoTo, std::move(targetState), std::move(context)); }
         static Transition Finish(std::any context = {}) { return Transition(Kind::Finish, {}, std::move(context)); }
         static Transition Abort(std::any context = {}) { return Transition(Kind::Abort, {}, std::move(context)); }
+        static Transition Restart(std::any context = {}) { return Transition(Kind::Restart, {}, std::move(context)); }
 
         Kind GetKind() const { return kind; }
         const std::string& GetTarget() const { return target; }

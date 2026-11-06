@@ -121,6 +121,23 @@ namespace ClankerCleaner::StateMachine
         return lastError;
     }
 
+    bool Flow::TryTransitionTo(std::string_view stateName, std::any context)
+    {
+        if(!IsRunning() || abortRequested)
+        {
+            return false;
+        }
+
+        // if its a looping flow, we must be at the start (likely idle) state
+        if(looping && GetCurrentStateName() != initialStateName)
+        {
+            return false;
+        }
+
+        ApplyTransition(Transition::GoTo(std::string(stateName), context));
+        return true;
+    }
+
     void Flow::Step()
     {
         if (abortRequested.exchange(false))
@@ -246,7 +263,6 @@ namespace ClankerCleaner::StateMachine
         case Transition::Kind::Next:
             MoveTo(ResolveNext(*currentState), std::move(transition.context));
             return;
-
         case Transition::Kind::GoTo:
         {
             State* nextState = FindState(transition.GetTarget());
@@ -255,6 +271,16 @@ namespace ClankerCleaner::StateMachine
                 throw std::logic_error("unknown state '" + transition.GetTarget() + "'");
             }
             MoveTo(nextState, std::move(transition.context));
+            return;
+        }
+        case Transition::Kind::Restart:
+        {
+            State* initialState = FindState(initialStateName);
+            if (!initialState)
+            {
+                throw std::logic_error("unknown state '" + initialStateName + "'");
+            }
+            MoveTo(initialState, std::move(transition.context));
             return;
         }
         }

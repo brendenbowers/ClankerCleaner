@@ -1,6 +1,7 @@
 #include "Flows/CleanTank/States/AddCleaner.h"
 #include "Flows/CleanTank/CleanTank.h"
 #include "Flows/CleanTank/Constants.h"
+#include "StateMachine/Context/ReturnToIdle.h"
 #include "GPIO/Pin.h"
 #include "GPIO/Constants.h"
 #include "FillTank.h"
@@ -31,6 +32,11 @@ namespace ClankerCleaner::Flows::CleanTank::States
         if(std::chrono::steady_clock::now() < fillStart + flow.settings->CleanTank.DetergentRunTime)
         {
             return Transition::Stay();
+        }
+
+        if(flow.GetContext<StateMachine::Context::ReturnToIdle>() != nullptr)
+        {
+            return Transition::Restart();
         }
 
         return Transition::Next();
