@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Clanker Cleaner Build Guide</title>
+    <meta name="description" content="How to build an automatic drain, rinse and refill controller for a robot vacuum dock.">
+    <style>
+        :root {
+            --bg: #f6f4ef;
+            --surface: #ffffff;
+            --text: #1d2428;
+            --muted: #5b676e;
+            --line: #dfdbd2;
+            --accent: #0f6e78;
+            --accent-soft: #dcefef;
+            --warn: #8a4b00;
+            --warn-soft: #fbeed5;
+            --clean: #2f7fd1;
+            --dirty: #9a6a1d;
+            --power: #c8372d;
+            --ground: #2f6fb0;
+            --signal: #2d8a55;
+            --cleaner: #8b4fc4;
+            color-scheme: light dark;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #12171b;
+                --surface: #1b2227;
+                --text: #e7ebed;
+                --muted: #9dabb3;
+                --line: #2f3a41;
+                --accent: #62c6d1;
+                --accent-soft: #15353a;
+                --warn: #f3bd6c;
+                --warn-soft: #3a2a10;
+                --clean: #6cb2f2;
+                --dirty: #d6a551;
+                --power: #f0766c;
+                --ground: #7db2e8;
+                --signal: #6fd19a;
+                --cleaner: #c39af0;
+            }
+        }
+
+        * { box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+
+        a { color: var(--accent); }
+
+        .page {
+            display: grid;
+            grid-template-columns: 220px minmax(0, 1fr);
+            gap: 48px;
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 40px 24px 64px;
+        }
+
+        nav {
+            position: sticky;
+            top: 24px;
+            align-self: start;
+            font-size: 0.92rem;
+        }
+
+        nav strong { display: block; margin-bottom: 8px; }
+        nav ol { list-style: none; margin: 0; padding: 0; }
+        nav a { display: block; padding: 4px 0; color: var(--muted); text-decoration: none; }
+        nav a:hover { color: var(--accent); }
+
+        h1 { font-size: 2.4rem; line-height: 1.15; margin: 0 0 12px; }
+        h2 { font-size: 1.6rem; line-height: 1.25; margin: 56px 0 12px; }
+        h3 { font-size: 1.1rem; margin: 28px 0 8px; }
+        p, ul, ol { margin: 0 0 14px; }
+        li { margin-bottom: 6px; }
+
+        .lead { font-size: 1.15rem; color: var(--muted); }
+
+        figure { margin: 20px 0; }
+        figure img, figure svg { display: block; width: 100%; height: auto; }
+        figcaption { margin-top: 8px; font-size: 0.9rem; color: var(--muted); }
+
+        .narrow img { max-width: 420px; margin: 0 auto; }
+        .narrow figcaption { text-align: center; }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 280px;
+            gap: 32px;
+            align-items: center;
+        }
+
+        .hero figure { margin: 0; }
+        .hero img { border-radius: 10px; }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .note, .warn {
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 16px 0;
+        }
+
+        .note { background: var(--accent-soft); }
+        .warn { background: var(--warn-soft); color: var(--warn); }
+        .note > :last-child, .warn > :last-child { margin-bottom: 0; }
+
+        .table {
+            overflow-x: auto;
+            margin: 12px 0 20px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--surface);
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+        th, td { padding: 9px 12px; text-align: left; vertical-align: top; border-top: 1px solid var(--line); }
+        thead th { border-top: none; color: var(--muted); font-weight: 600; white-space: nowrap; }
+        td:first-child { font-weight: 600; }
+
+        code { font: 0.9em ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+
+        pre {
+            overflow-x: auto;
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+        }
+
+        .steps { padding-left: 22px; }
+
+        svg text { fill: var(--text); font: 13px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+        svg .small { fill: var(--muted); font-size: 11.5px; }
+        svg .box { fill: var(--surface); stroke: var(--muted); stroke-width: 1.5; }
+        svg .pipe { fill: none; stroke-width: 3.5; stroke-linejoin: round; }
+        svg .water { stroke: var(--clean); }
+        svg .waste { stroke: var(--dirty); }
+        svg .soap { stroke: var(--cleaner); }
+        svg .plus { stroke: var(--power); }
+        svg .minus { stroke: var(--ground); }
+        svg .sig { stroke: var(--signal); stroke-dasharray: 6 5; }
+
+        .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.88rem; color: var(--muted); margin-top: 8px; }
+        .legend i { display: inline-block; width: 18px; height: 4px; margin-right: 6px; vertical-align: middle; border-radius: 2px; }
+
+        footer { margin-top: 56px; font-size: 0.9rem; color: var(--muted); }
+
+        @media (max-width: 860px) {
+            .page { display: block; padding: 24px 16px 48px; }
+            nav { position: static; margin-bottom: 24px; }
+            nav ol { columns: 2; }
+            .hero { grid-template-columns: 1fr; }
+            .hero img { max-width: 300px; margin: 0 auto; }
+            h1 { font-size: 2rem; }
+        }
+
+        /* Phones: a diagram keeps a readable size and scrolls, and each table row becomes a
+           card, so no column is hidden off the side. Labels come from the script below. */
+        @media (max-width: 640px) {
+            figure.panel { overflow-x: auto; }
+            figure.panel svg { min-width: 620px; }
+            .table { overflow: visible; border: none; background: none; }
+            table, tbody, tr, td { display: block; }
+            thead { display: none; }
+            tr {
+                margin-bottom: 10px;
+                padding: 6px 12px;
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                background: var(--surface);
+            }
+            td { padding: 4px 0; border-top: none; }
+            td:not(:first-child)::before {
+                content: attr(data-label) ": ";
+                color: var(--muted);
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <nav aria-label="Sections">
+        <strong>Build guide</strong>
+        <ol>
+            <li><a href="#how">How it works</a></li>
+            <li><a href="#parts">Parts</a></li>
+            <li><a href="#tools">Tools</a></li>
+            <li><a href="#board">1. Mount the parts</a></li>
+            <li><a href="#power">2. Wire the power</a></li>
+            <li><a href="#controller">3. Wire the controller</a></li>
+            <li><a href="#tanks">4. Prepare the tanks</a></li>
+            <li><a href="#sensors">5. Wire the sensors</a></li>
+            <li><a href="#firmware">6. Load the firmware</a></li>
+            <li><a href="#test">7. Test it dry</a></li>
+            <li><a href="#plumbing">8. Connect the water</a></li>
+            <li><a href="#dashboard">9. Add the dashboard</a></li>
+            <li><a href="#timings">Timings</a></li>
+            <li><a href="#trouble">Troubleshooting</a></li>
+        </ol>
+    </nav>
+
+    <main>
+        <header class="hero">
+            <div>
+                <h1>Build your own Clanker Cleaner</h1>
+                <p class="lead">A small controller that empties a robot vacuum dock's dirty tank, rinses it, and refills the clean tank, so you stop carrying water by hand.</p>
+                <p>We built ours for a MOVA P10 Ultra, but the idea suits any dock with tanks you can reach. Each part below is listed by what it does, with the one we used as an example.</p>
+            </div>
+            <figure>
+                <img src="images/installed.webp" width="675" height="1500" alt="The finished control board mounted on a wall above the open dock, with tubes running into two red-lidded tanks.">
+            </figure>
+        </header>
+
+        <div class="warn">
+            <p><strong>This connects low-voltage electronics to house water, unattended.</strong> Build it at your own risk. Modifying your dock may void its warranty. A stuck valve or split tube can flood a room, so keep a shut-off valve in reach and check the plumbing for leaks before you leave it running.</p>
+        </div>
+
+        <section id="how">
+            <h2>How it works</h2>
+            <p>Two sensors watch the tanks and a controller switches four 12 V loads through relays.</p>
+            <ul>
+                <li><strong>Dirty tank:</strong> when the sensor sees water, the pump drains the tank. A valve then lets in a short rinse, and the pump drains that too.</li>
+                <li><strong>Clean tank:</strong> when the low sensor goes dry, a valve fills the tank until the high sensor sees water or time runs out. A small pump then adds cleaner.</li>
+            </ul>
+            <figure class="panel">
+                <svg viewBox="0 0 760 330" role="img" aria-label="Water path: house water passes a shut-off valve and a tee. One branch goes through the fill valve to the clean tank. The other goes through the rinse valve to the dirty tank. The drain pump empties the dirty tank to a drain. A dosing pump feeds cleaner to the clean tank.">
+                    <path class="pipe water" d="M 110 60 H 250"/>
+                    <path class="pipe water" d="M 250 60 H 400 V 150"/>
+                    <path class="pipe water" d="M 250 60 V 150"/>
+                    <path class="pipe waste" d="M 460 240 H 560 M 640 240 H 740"/>
+                    <path class="pipe soap" d="M 90 240 H 120 M 190 240 H 210"/>
+
+                    <rect class="box" x="10" y="38" width="100" height="44" rx="8"/>
+                    <text x="60" y="65" text-anchor="middle">House water</text>
+                    <rect class="box" x="130" y="42" width="84" height="36" rx="8"/>
+                    <text x="172" y="65" text-anchor="middle">Shut-off</text>
+
+                    <rect class="box" x="205" y="100" width="90" height="36" rx="8"/>
+                    <text x="250" y="123" text-anchor="middle">Fill valve</text>
+                    <rect class="box" x="350" y="100" width="100" height="36" rx="8"/>
+                    <text x="400" y="123" text-anchor="middle">Rinse valve</text>
+
+                    <rect class="box" x="210" y="160" width="100" height="130" rx="10"/>
+                    <text x="260" y="228" text-anchor="middle">Clean tank</text>
+                    <text class="small" x="260" y="178" text-anchor="middle">High sensor</text>
+                    <text class="small" x="260" y="280" text-anchor="middle">Low sensor</text>
+
+                    <rect class="box" x="350" y="160" width="110" height="130" rx="10"/>
+                    <text x="405" y="228" text-anchor="middle">Dirty tank</text>
+                    <text class="small" x="405" y="178" text-anchor="middle">Sensor near top</text>
+
+                    <rect class="box" x="560" y="222" width="80" height="36" rx="8"/>
+                    <text x="600" y="245" text-anchor="middle">Drain pump</text>
+                    <text x="744" y="226" text-anchor="end">To drain</text>
+
+                    <rect class="box" x="10" y="222" width="80" height="36" rx="8"/>
+                    <text x="50" y="245" text-anchor="middle">Cleaner</text>
+                    <rect class="box" x="120" y="222" width="70" height="36" rx="8"/>
+                    <text x="155" y="245" text-anchor="middle">Dosing</text>
+                </svg>
+                <div class="legend">
+                    <span><i style="background:var(--clean)"></i>Clean water</span>
+                    <span><i style="background:var(--dirty)"></i>Dirty water</span>
+                    <span><i style="background:var(--cleaner)"></i>Cleaner</span>
+                </div>
+            </figure>
+        </section>
+
+        <section id="parts">
+            <h2>Parts</h2>
+            <p>Anything that does the same job will work. The examples are what we used, so check that sizes and voltages suit your dock before you buy.</p>
+
+            <h3>Controller and switching</h3>
+            <div class="table"><table>
+                <thead><tr><th>Part</th><th>What it does</th><th>Qty</th><th>Our example</th></tr></thead>
+                <tbody>
+                    <tr><td>Microcontroller</td><td>Runs the firmware and connects to Wi-Fi</td><td>1</td><td><a href="https://www.amazon.ca/dp/B0FRRJCDHF">Freenove ESP32-S3 WROOM (N16R8)</a>. A Raspberry Pi also works: it's what the photos show.</td></tr>
+                    <tr><td>12 V relay module, 2-channel, high/low trigger</td><td>Switches each 12 V load from a 3.3 V signal</td><td>2</td><td>Red relay boards with JQC-3FF 12 V relays</td></tr>
+                    <tr><td>12 V power adapter, 3 A</td><td>Powers the relays, pumps and valves</td><td>1</td><td><a href="https://www.amazon.ca/dp/B0G1YX9JCZ">Arkare 12 V 3 A</a></td></tr>
+                    <tr><td>DC screw-terminal jack</td><td>Connects the adapter to bare wire</td><td>1</td><td>5.5 x 2.1 mm female jack</td></tr>
+                    <tr><td>Inline fuse holder and 3 A fuse</td><td>Cuts the 12 V feed on a short</td><td>1</td><td>Recommended: any 18 gauge holder</td></tr>
+                </tbody>
+            </table></div>
+
+            <h3>Pumps, valves and sensors</h3>
+            <div class="table"><table>
+                <thead><tr><th>Part</th><th>What it does</th><th>Qty</th><th>Our example</th></tr></thead>
+                <tbody>
+                    <tr><td>12 V self-priming diaphragm pump</td><td>Drains the dirty tank</td><td>1</td><td><a href="https://www.amazon.ca/dp/B09ZX4TFNG">Gikfun R385</a></td></tr>
+                    <tr><td>12 V normally-closed solenoid valve</td><td>Lets in rinse water and fill water. Closed when unpowered.</td><td>2</td><td><a href="https://www.amazon.ca/dp/B016MP1HX0">DIGITEN 1/4" quick-connect</a></td></tr>
+                    <tr><td>12 V peristaltic dosing pump</td><td>Adds cleaner to the clean tank</td><td>1</td><td><a href="https://www.amazon.ca/dp/B07GWJ78FN">Kamoer NKP</a></td></tr>
+                    <tr><td>Non-contact liquid level sensor</td><td>Sees water through the tank wall</td><td>3</td><td><a href="https://www.amazon.ca/dp/B088NQ5JQ4">XKC-Y25</a>: one NPN for the dirty tank, two PNP for the clean tank</td></tr>
+                    <tr><td>Flyback diode</td><td>Protects the relays from the spike when a pump or valve turns off</td><td>4</td><td>Recommended: 1N5819, one across each load</td></tr>
+                </tbody>
+            </table></div>
+
+            <h3>Tanks and plumbing</h3>
+            <div class="table"><table>
+                <thead><tr><th>Part</th><th>What it does</th><th>Qty</th><th>Our example</th></tr></thead>
+                <tbody>
+                    <tr><td>Clip-lid food container</td><td>Stands in for the dock's tank, with a lid you can drill. The dirty tank's should seal airtight and preferably not flex under vacuum.</td><td>2</td><td>Clear containers with red clip lids, sized to fit the dock</td></tr>
+                    <tr><td>Float valve</td><td>Stops the fill mechanically, even if a valve sticks open</td><td>1</td><td><a href="https://www.amazon.ca/dp/B01N43RMXR">Malida adjustable float valve</a></td></tr>
+                    <tr><td>Barbed bulkhead fittings</td><td>Carry tubes through the tank lids</td><td>As needed</td><td>Nylon barbs sealed into the lids</td></tr>
+                    <tr><td>Clear silicone or vinyl tube</td><td>Dip tube, drain line and vacuum line. The vacuum line's tube must not collapse under vacuum.</td><td>About 3 m</td><td>1/4" ID tube</td></tr>
+                    <tr><td>1/4" OD water line</td><td>Carries clean water to the valves</td><td>As needed</td><td>White push-fit line</td></tr>
+                    <tr><td>1/4" push-fit tee and elbows</td><td>Splits the supply to both valves</td><td>As needed</td><td><a href="https://www.amazon.ca/dp/B07Q5N5M6C">Lemoy 1/4" fittings</a></td></tr>
+                    <tr><td>Ball valve</td><td>Shuts the water off by hand</td><td>1</td><td>1/4" push-fit valve with a blue handle</td></tr>
+                    <tr><td>Water supply tap</td><td>Takes water from a cold line</td><td>1</td><td>A tee or saddle kit that suits your plumbing</td></tr>
+                    <tr><td>Backflow preventer</td><td>Keeps tank water out of your drinking water</td><td>1</td><td>A dual check valve. Check your local plumbing code.</td></tr>
+                </tbody>
+            </table></div>
+
+            <h3>Mounting and small parts</h3>
+            <div class="table"><table>
+                <thead><tr><th>Part</th><th>What it does</th><th>Qty</th><th>Our example</th></tr></thead>
+                <tbody>
+                    <tr><td>Mounting board</td><td>Holds everything, and hangs on the wall</td><td>1</td><td>Bamboo cutting board</td></tr>
+                    <tr><td>Lever wire connectors</td><td>Join the 12 V and ground wires</td><td>4</td><td>5-port grey and orange lever connectors</td></tr>
+                    <tr><td>Solderless breadboard</td><td>Holds the sensor resistors and signal wiring</td><td>1</td><td>Full-size 830-point breadboard</td></tr>
+                    <tr><td>Resistors, 10 kΩ and 15 kΩ</td><td>Pull-up and voltage dividers for the sensors</td><td>3 and 2</td><td>Any 1/4 W resistors</td></tr>
+                    <tr><td>Stranded hookup wire</td><td>Red for 12 V, blue for ground</td><td>A few metres</td><td>18 to 22 gauge</td></tr>
+                    <tr><td>Crimp terminals</td><td>Connect wire to the pump and valve tabs</td><td>8</td><td>Insulated female spade terminals</td></tr>
+                    <tr><td>4-wire cable</td><td>Runs the sensors to the board. Each cable serves up to two sensors.</td><td>2</td><td>Old USB cables, cut to length</td></tr>
+                    <tr><td>4-pin connectors</td><td>Let you unplug a tank's sensors</td><td>2 pairs</td><td>JST connectors</td></tr>
+                    <tr><td>Jumper wires</td><td>Connect the controller, breadboard and relays</td><td>1 pack</td><td>Dupont jumpers</td></tr>
+                    <tr><td>Fixings</td><td>Hold parts to the board</td><td>As needed</td><td>Clear push pins, cable ties and screws</td></tr>
+                </tbody>
+            </table></div>
+        </section>
+
+        <section id="tools">
+            <h2>Tools</h2>
+            <ul>
+                <li>Wire strippers and a crimping tool</li>
+                <li>Soldering iron and heat-shrink, for the sensor joints</li>
+                <li>Multimeter</li>
+                <li>Drill and step bit for the tank lids</li>
+                <li>Small screwdrivers</li>
+                <li>A Windows PC with Git, for building the firmware</li>
+            </ul>
+        </section>
+
+        <section id="board">
+            <h2>1. Mount the parts</h2>
+            <ol class="steps">
+                <li>Lay everything out before you fix anything. Put the valves and pumps along the edge nearest the dock, so their tubes reach it.</li>
+                <li>Keep the controller and breadboard at the far end, away from the pumps and water.</li>
+                <li>Fix the relay boards, lever connectors, pumps and valves to the board.</li>
+                <li>Let the valves and pumps hang over the edge if that makes their tubes easier to reach.</li>
+            </ol>
+            <figure>
+                <img src="images/board-top.webp" width="792" height="1211" loading="lazy" alt="Bamboo board from above: two solenoid valves, a dosing pump and a drain pump along the top edge, two relay boards in the middle, and a Raspberry Pi and breadboard along the bottom.">
+                <figcaption>Our layout: valves and pumps at one end, relays in the middle, controller and breadboard at the other. The photos show our first Raspberry Pi version.</figcaption>
+            </figure>
+        </section>
+
+        <section id="power">
+            <h2>2. Wire the power</h2>
+            <p>The 12 V side has one rule: power goes through a relay to each load, and every load returns to a shared ground.</p>
+            <figure class="panel">
+                <svg viewBox="0 0 760 300" role="img" aria-label="Wiring: the 12 volt adapter's positive goes through a fuse to a positive lever connector, which feeds each relay's COM terminal and the relay boards' power input. Each relay's NO terminal feeds one load. Every load's negative returns to a ground lever connector, which also joins the adapter negative, the relay boards and the controller ground. The controller drives each relay input.">
+                    <path class="pipe plus" d="M 120 60 H 190 M 240 60 H 280 M 340 60 H 420 M 500 60 H 600"/>
+                    <path class="pipe minus" d="M 120 80 V 250 H 280 M 340 250 H 660 V 82"/>
+                    <path class="pipe minus" d="M 460 250 V 100"/>
+                    <path class="pipe sig" d="M 170 170 H 440 V 100"/>
+
+                    <rect class="box" x="10" y="40" width="110" height="50" rx="8"/>
+                    <text x="65" y="70" text-anchor="middle">12 V adapter</text>
+                    <rect class="box" x="190" y="42" width="50" height="36" rx="8"/>
+                    <text x="215" y="65" text-anchor="middle">Fuse</text>
+                    <rect class="box" x="280" y="42" width="60" height="36" rx="8"/>
+                    <text x="310" y="65" text-anchor="middle">+ bus</text>
+                    <rect class="box" x="420" y="32" width="80" height="68" rx="8"/>
+                    <text x="460" y="58" text-anchor="middle">Relay</text>
+                    <text class="small" x="460" y="76" text-anchor="middle">COM → NO</text>
+                    <text class="small" x="460" y="91" text-anchor="middle">x4</text>
+                    <rect class="box" x="600" y="38" width="130" height="44" rx="8"/>
+                    <text x="665" y="65" text-anchor="middle">Pump or valve</text>
+                    <rect class="box" x="60" y="150" width="110" height="44" rx="8"/>
+                    <text x="115" y="177" text-anchor="middle">Controller</text>
+                    <rect class="box" x="280" y="232" width="60" height="36" rx="8"/>
+                    <text x="310" y="255" text-anchor="middle">− bus</text>
+                    <text class="small" x="290" y="160" text-anchor="middle">Signal to IN1 to IN4</text>
+                </svg>
+                <div class="legend">
+                    <span><i style="background:var(--power)"></i>+12 V</span>
+                    <span><i style="background:var(--ground)"></i>Ground</span>
+                    <span><i style="background:var(--signal)"></i>Signal, 3.3 V</span>
+                </div>
+            </figure>
+            <ol class="steps">
+                <li>Run the adapter's positive through the fuse to a lever connector. This is your + bus.</li>
+                <li>Run its negative to a second lever connector. This is your − bus.</li>
+                <li>From the + bus, wire <code>DC+</code> on each relay board and the <code>COM</code> terminal of all four relays.</li>
+                <li>From each relay's <code>NO</code> terminal, wire the positive of one load. Using NO means the load is off whenever the relay is off.</li>
+                <li>Wire each load's negative, and <code>DC−</code> on each relay board, to the − bus.</li>
+                <li>Fit a flyback diode across each load, with the stripe on the positive side.</li>
+                <li>Set each relay board's trigger jumper to <strong>H</strong>, so 3.3 V turns a relay on.</li>
+            </ol>
+            <figure>
+                <img src="images/board-angle.webp" width="1205" height="650" loading="lazy" alt="The wired board from an angle, with red 12 volt and blue ground wires running from the lever connectors to the relays, pumps and valves.">
+                <figcaption>Red wires are 12 V, blue wires are ground. The lever connectors make up the + and − buses.</figcaption>
+            </figure>
+            <div class="note">
+                <p>All the loads share the adapter's 3 A. They add up to about 1.7 A, leaving room for motors starting up, but don't add more loads without checking the total.</p>
+            </div>
+        </section>
+
+        <section id="controller">
+            <h2>3. Wire the controller</h2>
+            <p>Connect the controller's ground to the − bus with a single wire, so pump current never flows through it. Then wire the signals below. The sensors get their own step once the tanks are ready.</p>
+
+            <div class="table"><table>
+                <thead><tr><th>Signal</th><th>ESP32-S3</th><th>Raspberry Pi (GPIO, header pin)</th></tr></thead>
+                <tbody>
+                    <tr><td>Pump relay (IN1)</td><td>GPIO38</td><td>GPIO17, pin 11</td></tr>
+                    <tr><td>Rinse valve relay (IN2)</td><td>GPIO39</td><td>GPIO27, pin 13</td></tr>
+                    <tr><td>Fill valve relay (IN3)</td><td>GPIO40</td><td>GPIO5, pin 29</td></tr>
+                    <tr><td>Dosing pump relay (IN4)</td><td>GPIO41</td><td>GPIO6, pin 31</td></tr>
+                    <tr><td>Dirty tank sensor</td><td>GPIO1</td><td>GPIO22, pin 15</td></tr>
+                    <tr><td>Clean tank high sensor</td><td>GPIO42</td><td>GPIO26, pin 37</td></tr>
+                    <tr><td>Clean tank low sensor</td><td>GPIO21</td><td>GPIO23, pin 16</td></tr>
+                </tbody>
+            </table></div>
+
+            <p>Avoid these ESP32-S3 pins for anything else: GPIO35 to 37 (used by the memory), 0, 3, 45 and 46 (boot mode), 19 and 20 (USB), and 43 and 44 (serial console).</p>
+        </section>
+
+        <section id="tanks">
+            <h2>4. Prepare the tanks</h2>
+            <ol class="steps">
+                <li>Check that your containers fit the dock's tank bays and that the dock's own connections still reach them.</li>
+                <li><strong>Dirty tank:</strong> drill the lid for the dock's inlet, the drain dip tube and the rinse inlet. Run the dip tube to the bottom of the tank.</li>
+                <li><strong>Clean tank:</strong> drill the lid for the fill line, the cleaner tube and the dock's outlet. Fit the float valve so it closes before the tank overflows.</li>
+            </ol>
+            <div class="note">
+                <p><strong>The dirty tank's vacuum line.</strong> The dock uses vacuum on the dirty tank, so this tank needs more care than the clean one:</p>
+                <ul>
+                    <li>The lid and every fitting must be airtight.</li>
+                    <li>Keep the vacuum port above the water line.</li>
+                    <li>Use tube that won't collapse under vacuum.</li>
+                    <li>Preferably, choose a tank that doesn't flex when vacuum is applied.</li>
+                </ul>
+            </div>
+            <figure>
+                <img src="images/tanks.webp" width="1345" height="811" loading="lazy" alt="Two clear containers with red clip lids. Tubes run through barbed fittings in the left lid, and the right lid has an elbow fitting above a float valve.">
+                <figcaption>Our tanks with their lid fittings. The right one has the float valve inside. The tank bodies are softened in this image to hide the background.</figcaption>
+            </figure>
+        </section>
+
+        <section id="sensors">
+            <h2>5. Wire the sensors</h2>
+            <p>The sensors sit on the outside of the tanks, so no wiring goes near the water. We ran them to the board with old USB cables, cut and fitted with JST connectors.</p>
+
+            <h3>Fix the sensors to the tanks</h3>
+            <ol class="steps">
+                <li>Fix each sensor flat against the side of its tank: one near the top of the dirty tank, and one near the top and one near the bottom of the clean tank.</li>
+                <li>Keep the gap between sensor and wall as small as you can. The XKC-Y25 datasheet asks for under 0.5 mm, and suggests an epoxy-type glue.</li>
+                <li>Keep them clear of spots where water runs down the wall, and away from settled silt.</li>
+            </ol>
+            <figure class="narrow">
+                <img src="images/sensors.webp" width="767" height="1200" loading="lazy" alt="Looking down into the dock: two white sensors fixed to the sides of the tanks in the gap between them, with black cables running down to them.">
+                <figcaption>Our sensors on the sides of the tanks, in the gap between them, with the black USB cables running down to them.</figcaption>
+            </figure>
+
+            <h3>Make the cables</h3>
+            <p>A USB cable has four wires, which is what two sensors need: 5 V, ground and one signal each. So the clean tank's two sensors share one cable, and the dirty tank's sensor uses another with a wire to spare.</p>
+            <div class="table"><table>
+                <thead><tr><th>USB wire</th><th>Clean tank cable</th><th>Dirty tank cable</th></tr></thead>
+                <tbody>
+                    <tr><td>Red</td><td>5 V to both sensors</td><td>5 V</td></tr>
+                    <tr><td>Black</td><td>Ground to both sensors</td><td>Ground</td></tr>
+                    <tr><td>White</td><td>High sensor signal</td><td>Sensor signal</td></tr>
+                    <tr><td>Green</td><td>Low sensor signal</td><td>Spare, for a second sensor</td></tr>
+                </tbody>
+            </table></div>
+            <ol class="steps">
+                <li>Cut the plugs off two old USB cables, and strip the four wires. Ignore any bare shield wire or foil.</li>
+                <li>Check each wire with a multimeter. These are the usual colours, but cheap cables vary.</li>
+                <li>At the tank end, join the sensors' brown wires to the 5 V wire, their blue wires to ground, and each yellow wire to its signal. Insulate every joint.</li>
+                <li>Tape off each sensor's black mode wire.</li>
+                <li>Fit a 4-pin JST connector to each cable, so a tank can be unplugged and lifted out.</li>
+                <li>Label both ends of each cable, and keep the same pin order on both.</li>
+            </ol>
+            <div class="warn">
+                <p><strong>Never plug these cables into a USB port.</strong> They carry sensor signals now, not USB.</p>
+            </div>
+
+            <h3>Connect them to the ESP32-S3</h3>
+            <div class="warn">
+                <p><strong>Never put 5 V on a GPIO pin.</strong> The sensors run on 5 V, but the controller's inputs take 3.3 V at most. Power each sensor and measure its signal wire before you connect it.</p>
+            </div>
+            <div class="table"><table>
+                <thead><tr><th>Sensor</th><th>Signal wiring</th><th>Wet reads</th></tr></thead>
+                <tbody>
+                    <tr><td>Dirty tank (NPN)</td><td>Straight to GPIO1, with a 10 kΩ resistor from GPIO1 to 3.3 V</td><td>Low</td></tr>
+                    <tr><td>Clean tank high (PNP)</td><td>Through 10 kΩ to GPIO42, with 15 kΩ from GPIO42 to ground</td><td>High</td></tr>
+                    <tr><td>Clean tank low (PNP)</td><td>Through 10 kΩ to GPIO21, with 15 kΩ from GPIO21 to ground</td><td>High</td></tr>
+                </tbody>
+            </table></div>
+            <p>The 10 kΩ and 15 kΩ pair turns the PNP sensor's 5 V into a safe 3 V. Keep these resistors at the controller end, so only the safe voltage reaches the pin. Power the sensors from the controller's 5 V pin and ground.</p>
+            <figure class="narrow">
+                <img src="images/breadboard.webp" width="798" height="878" loading="lazy" alt="Breadboard with resistors, header pins and jumper wires, and four coloured LEDs at the far end.">
+                <figcaption>The sensor resistors on the breadboard. The coloured LEDs were test lights for the relay signals, and you can leave them out.</figcaption>
+            </figure>
+        </section>
+
+        <section id="firmware">
+            <h2>6. Load the firmware</h2>
+            <ol class="steps">
+                <li>Clone <a href="https://github.com/brendenbowers/ClankerCleaner">the repository</a>.</li>
+                <li>Copy <code>esp32/Secrets.example.h</code> to <code>esp32/Secrets.h</code> and fill in your Wi-Fi details. Git ignores this file. Your dock's cloud account goes here too, if you want the mop wash and dock status.</li>
+                <li>Install the tools. This downloads about 2 GB into the project's <code>.cache</code> folder:
+                    <pre><code>scripts\esp-idf.cmd install</code></pre>
+                </li>
+                <li>Build the firmware:
+                    <pre><code>scripts\esp-idf.cmd build</code></pre>
+                </li>
+                <li>Connect the board's UART USB port, then flash it and watch the log. Use your own COM port:
+                    <pre><code>scripts\esp-idf.cmd -p COM3 flash monitor</code></pre>
+                </li>
+            </ol>
+            <p>After that you can update it over Wi-Fi. The <a href="https://github.com/brendenbowers/ClankerCleaner#esp32-firmware">README</a> covers that, the Raspberry Pi build and everything else in more detail.</p>
+        </section>
+
+        <section id="test">
+            <h2>7. Test it dry</h2>
+            <p>Do this before any water is connected. The board may try to fill as soon as it starts, because an empty tank is what it's meant to fix.</p>
+            <ol class="steps">
+                <li>With the controller unplugged from the relays, power the 12 V side and measure each relay input to ground. It should read about 0 V, and nothing should run.</li>
+                <li>Connect the controller and watch the log. Each sensor's level is logged at startup and when it changes.</li>
+                <li>Hold a wet hand or a cup of water against each sensor, and check that the log shows the right pin changing.</li>
+                <li>Check that each relay clicks and the right load runs. If they're swapped, fix the wiring before you add water.</li>
+            </ol>
+        </section>
+
+        <section id="plumbing">
+            <h2>8. Connect the water</h2>
+            <ol class="steps">
+                <li>Turn off the water, and fit your supply tap to a cold line.</li>
+                <li>Run the line through the backflow preventer and the shut-off valve, then to a tee.</li>
+                <li>Run one side of the tee to the fill valve and the other to the rinse valve. Follow the arrow on each valve.</li>
+                <li>Connect the fill valve to the clean tank, and the rinse valve to the dirty tank.</li>
+                <li>Connect the dirty tank's dip tube to the drain pump, and run the pump's outlet to your drain.</li>
+                <li>Run the dosing pump's tubes from your cleaner bottle to the clean tank.</li>
+                <li>Open the water slowly and check every joint for leaks. Check again after a full cycle.</li>
+            </ol>
+            <figure class="narrow">
+                <img src="images/board-wall.webp" width="675" height="1500" loading="lazy" alt="The board mounted on a wall, with white water line, a blue shut-off valve and a tee connected to the two solenoid valves.">
+                <figcaption>Wall-mounted with the water connected. The blue handle is the shut-off.</figcaption>
+            </figure>
+            <div class="note">
+                <p>Use a low-foam cleaner made for robot mops, at the strength on its label. Foam and the wrong chemicals can damage the robot.</p>
+            </div>
+            <div class="note">
+                <p>Check your valve's minimum pressure. Ours needs 0.02 MPa, so it suits a pressurised line, and it may not open on a gravity feed.</p>
+            </div>
+        </section>
+
+        <section id="dashboard">
+            <h2>9. Add the dashboard (optional)</h2>
+            <p>The controller runs on its own, but it can also report to an MQTT broker. The <code>dashboard/</code> web app then shows live status and can send these commands:</p>
+            <div class="table"><table>
+                <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+                <tbody>
+                    <tr><td><code>drain</code></td><td>Runs the drain pump, without a rinse</td></tr>
+                    <tr><td><code>rinse</code></td><td>Runs the rinse and leaves the water in the tank. Stops if the sensor goes wet.</td></tr>
+                    <tr><td><code>fill</code></td><td>Fills the clean tank, without adding cleaner</td></tr>
+                    <tr><td><code>add_cleaner</code></td><td>Runs the dosing pump once. It doesn't check the water level, so make sure the tank has water in it.</td></tr>
+                    <tr><td><code>stop</code></td><td>Turns everything off and holds the automatic runs</td></tr>
+                    <tr><td><code>resume</code></td><td>Restarts the automatic runs</td></tr>
+                </tbody>
+            </table></div>
+            <p>A tank that's busy refuses a command, so commands can't interrupt a run. Only <code>stop</code> does that. See the <a href="https://github.com/brendenbowers/ClankerCleaner#esp32-firmware">README</a> to set up a broker.</p>
+        </section>
+
+        <section id="timings">
+            <h2>Timings</h2>
+            <p>These are our settings on the ESP32. Yours will depend on your pump and tank size. Change them in <code>src/Config/Config.ESP32.cpp</code>, or in the config file on a Raspberry Pi.</p>
+            <div class="table"><table>
+                <thead><tr><th>Setting</th><th>Ours</th><th>Why it matters</th></tr></thead>
+                <tbody>
+                    <tr><td>Pump run</td><td>90 s</td><td>How long one drain takes</td></tr>
+                    <tr><td>Extra when full</td><td>30 s</td><td>Added if the sensor is wet when the drain starts</td></tr>
+                    <tr><td>Pump limit</td><td>600 s</td><td>Longest it keeps pumping during a mop wash</td></tr>
+                    <tr><td>Rinse</td><td>7 s</td><td>How long the rinse valve stays open</td></tr>
+                    <tr><td>Pump after rinse</td><td>45 s</td><td>How long it pumps out the rinse water</td></tr>
+                    <tr><td>Sensor debounce</td><td>10 s</td><td>How long a reading must hold before it counts</td></tr>
+                    <tr><td>Fill limit</td><td>60 s</td><td>Longest the fill valve stays open</td></tr>
+                    <tr><td>Cleaner dose</td><td>15 s</td><td>How long the dosing pump runs per fill</td></tr>
+                </tbody>
+            </table></div>
+        </section>
+
+        <section id="trouble">
+            <h2>Troubleshooting</h2>
+            <div class="table"><table>
+                <thead><tr><th>What you see</th><th>Check</th></tr></thead>
+                <tbody>
+                    <tr><td>A relay is on as soon as it boots</td><td>The trigger jumper should be on H.</td></tr>
+                    <tr><td>A sensor reads the opposite of what it should</td><td>Check whether it's NPN or PNP, and that the black mode wire isn't connected.</td></tr>
+                    <tr><td>A sensor never changes</td><td>Press it flatter against the wall, or turn its sensitivity knob. Counter-clockwise is more sensitive.</td></tr>
+                    <tr><td>The drain stops and stays stopped</td><td>The sensor was still wet when the run ended. Look for a blockage or an air leak, then send <code>resume</code> or restart.</td></tr>
+                    <tr><td>The fill stops and stays stopped</td><td>The low sensor was still dry when time ran out. Check the water supply and the valve.</td></tr>
+                    <tr><td>The dock can't pull water into the dirty tank</td><td>Check that the lid and fittings are airtight, and that the vacuum line hasn't collapsed.</td></tr>
+                    <tr><td>The controller resets when a pump starts</td><td>Check the flyback diodes and the adapter's current rating, and keep the controller's ground on a single wire to the − bus.</td></tr>
+                </tbody>
+            </table></div>
+        </section>
+
+        <footer>
+            <p>Also available as <a href="https://github.com/brendenbowers/ClankerCleaner/blob/master/docs/build-guide/README.md">Markdown</a>. Part of the <a href="https://github.com/brendenbowers/ClankerCleaner">ClankerCleaner</a> project. Clanker Cleaner is a personal project, not affiliated with MOVA.</p>
+        </footer>
+    </main>
+</div>
+<script>
+    document.querySelectorAll("table").forEach((table) => {
+        const labels = [...table.querySelectorAll("thead th")].map((heading) => heading.textContent);
+        table.querySelectorAll("tbody tr").forEach((row) => {
+            [...row.cells].forEach((cell, index) => {
+                cell.dataset.label = labels[index];
+            });
+        });
+    });
+</script>
+</body>
+</html>

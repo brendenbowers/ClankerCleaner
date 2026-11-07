@@ -1,4 +1,5 @@
-# Publishes dashboard/ to GitHub Pages. In the repository's Settings > Pages, set the
+# Publishes dashboard/ and, under /guide/, docs/build-guide/ to GitHub Pages. In the
+# repository's Settings > Pages, set the
 # source to "GitHub Actions" once.
 name: Dashboard
 
@@ -7,6 +8,7 @@ on:
     branches: [master]
     paths:
       - "dashboard/**"
+      - "docs/build-guide/**"
       - ".github/workflows/dashboard.yml"
   workflow_dispatch:
 
@@ -28,8 +30,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Put the site together
+        run: |
+          mkdir _site
+          cp -r dashboard/. _site/
+          cp -r docs/build-guide _site/guide
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dashboard
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
