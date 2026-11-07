@@ -25,20 +25,10 @@ namespace ClankerCleaner::Flows::DirtyTank::States
 
     Transition Idle::Run(DirtyTankFlow& flow)
     {
-        if(std::exchange(flow.drainRequested, false))
-        {
-            return Transition::Next();
-        }
-        if(std::exchange(flow.rinseRequested, false))
-        {
-            return Transition::GoTo(Constants::State::RINSE_TANK_STATE);
-        }
-
         if(flow.dock.TakeWashFinished())
         {
             return Transition::Next();
         }
-
 
         // todo: maybe an optimization checking first if there are changes
         // GetSince includes events at exactly lastEvent, so +1 skips the one already handled.

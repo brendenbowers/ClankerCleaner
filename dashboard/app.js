@@ -25,7 +25,7 @@ const flowNames = {
     CleanTankFlow: "Clean tank",
 };
 const commandNames = {
-    drain: "Drain and rinse",
+    drain: "Drain",
     rinse: "Rinse",
     fill: "Fill",
     add_cleaner: "Add Cleaner",

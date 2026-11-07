@@ -1,6 +1,7 @@
 #include "Flows/DirtyTank/States/EmptyTank.h"
 #include "Flows/DirtyTank/Constants.h"
 #include "Flows/DirtyTank/DirtyTank.h"
+#include "StateMachine/Context/ReturnToIdle.h"
 #include "GPIO/Constants.h"
 #include "GPIO/Pin.h"
 #include "Logging/Logging.h"
@@ -43,6 +44,10 @@ namespace ClankerCleaner::Flows::DirtyTank::States
 
     Transition EmptyTank::Run(DirtyTankFlow& flow)
     {
+        Transition next = flow.HasContextOfType<StateMachine::Context::ReturnToIdle>()
+            ? Transition::Restart()
+            : Transition::Next();
+
         //todo: add checking the low sensor on the dirty tank once we have one
         if(pumpStart.time_since_epoch().count() == 0 || std::chrono::steady_clock::now() - pumpStart >= currentRunTime)
         {
@@ -77,7 +82,7 @@ namespace ClankerCleaner::Flows::DirtyTank::States
                 return Transition::Abort();
             }
 
-            return Transition::Next();
+            return next;
         }
 
         return Transition::Stay();

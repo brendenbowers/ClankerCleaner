@@ -39,11 +39,6 @@ namespace ClankerCleaner::Flows::CleanTank::States
 
     Transition Idle::Run(CleanTankFlow& flow)
     {
-        if(std::exchange(flow.fillRequested, false))
-        {
-            return Transition::Next();
-        }
-
         const GPIO::PinState lowPinState = flow.pinMonitor->GetState(flow.settings->Gpio.CleanTankLowSensorPin);
         if(lowPinState == GPIO::PinState::Default)
         {

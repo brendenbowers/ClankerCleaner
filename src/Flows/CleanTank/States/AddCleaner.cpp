@@ -28,18 +28,16 @@ namespace ClankerCleaner::Flows::CleanTank::States
 
     Transition AddCleanerState::Run(CleanTankFlow & flow)
     {
+        Transition next = flow.HasContextOfType<StateMachine::Context::ReturnToIdle>()
+            ? Transition::Restart()
+            : Transition::Next();
 
         if(std::chrono::steady_clock::now() < fillStart + flow.settings->CleanTank.DetergentRunTime)
         {
             return Transition::Stay();
         }
 
-        if(flow.GetContext<StateMachine::Context::ReturnToIdle>() != nullptr)
-        {
-            return Transition::Restart();
-        }
-
-        return Transition::Next();
+        return next;
     }
 
     bool AddCleanerState::End(CleanTankFlow & flow)

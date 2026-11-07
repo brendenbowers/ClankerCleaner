@@ -50,6 +50,11 @@ namespace ClankerCleaner::StateMachine
         const std::string& GetTarget() const { return target; }
         const std::any& GetContext() const { return context; }
 
+        template<typename T>
+        bool HasContextOfType() const { return context.type() == typeid(T); }
+        bool HasContext() const { return context.has_value(); }
+
+
     private:
         friend class Flow;
 

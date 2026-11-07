@@ -9,9 +9,10 @@
 
 namespace ClankerCleaner::Flows::Commands
 {
-    // Takes commands from MQTT. It drives no outputs itself: a command asks a tank flow's Idle
-    // state to start, so the tank flow's own states do the work, with their usual checks, and
-    // each output still has one owner. A tank flow that's already busy refuses the command.
+    // Takes commands from MQTT. It drives no outputs itself: a command moves a waiting tank flow
+    // to one of its own states, which does the work with its usual checks, so each output still
+    // has one owner. That one step runs, then the flow goes back to Idle (see ReturnToIdle). A
+    // tank flow that's already busy refuses the command.
     // Only stop interrupts a tank flow; it stays stopped until resume or a restart.
     class CommandFlow : public StateMachine::Flow
     {

@@ -85,11 +85,18 @@ namespace ClankerCleaner::Flows::Commands::States
         if(command == Command::DRAIN)
         {
             std::string busy = WhyNotIdle(*flow.dirtyTank, dirtyIdle);
-            if(busy.empty())
+            if(!busy.empty())
             {
-                flow.dirtyTank->drainRequested = true;
+                return busy;
             }
-            return busy;
+
+            if(!flow.dirtyTank->TryTransitionTo(DirtyTank::Constants::State::EMPTY_TANK_STATE, 
+                StateMachine::Context::ReturnToIdle::Default))
+            {
+                return "failed to drain dirty tank";
+            }
+            
+            return {};
         }
 
         if(command == Command::RINSE)
@@ -105,7 +112,13 @@ namespace ClankerCleaner::Flows::Commands::States
             {
                 return "dirty tank sensor is wet; drain it first";
             }
-            flow.dirtyTank->rinseRequested = true;
+
+            if(!flow.dirtyTank->TryTransitionTo(DirtyTank::Constants::State::RINSE_TANK_STATE, 
+                StateMachine::Context::ReturnToIdle::Default))
+            {
+                return "failed to rinse dirty tank";
+            }
+            
             return {};
         }
 
@@ -125,7 +138,13 @@ namespace ClankerCleaner::Flows::Commands::States
             {
                 return "clean tank is already full";
             }
-            flow.cleanTank->fillRequested = true;
+
+            if(!flow.cleanTank->TryTransitionTo(CleanTank::Constants::State::FILL_TANK_STATE, 
+                StateMachine::Context::ReturnToIdle::Default))
+                {
+                    return "failed to fill clean tank";
+                }
+            
             return {};
         }
 
@@ -136,7 +155,8 @@ namespace ClankerCleaner::Flows::Commands::States
             {
                 return busy;
             }
-            if(!flow.cleanTank->TryTransitionTo(Flows::CleanTank::Constants::State::ADD_CLEANER_STATE, StateMachine::Context::ReturnToIdle::Default))
+            if(!flow.cleanTank->TryTransitionTo(Flows::CleanTank::Constants::State::ADD_CLEANER_STATE, 
+                StateMachine::Context::ReturnToIdle::Default))
             {
                 return "unable to add cleaner";
             }

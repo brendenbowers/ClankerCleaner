@@ -89,6 +89,8 @@ namespace ClankerCleaner::StateMachine
         template <typename TContext>
         const TContext* GetContext() const { return std::any_cast<TContext>(&context); }
         bool HasContext() const { return context.has_value(); }
+        template<typename T>
+        bool HasContextOfType() const { return context.type() == typeid(T); }
 
         bool TryTransitionTo(std::string_view stateName, std::any context = {});
 

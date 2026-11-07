@@ -141,7 +141,7 @@
                 <h2>Controls</h2>
                 <p class="notice-text" id="read-only" hidden>This login can only watch. Sign out and connect with one that can send commands.</p>
                 <div class="commands">
-                    <button type="button" data-command="drain" disabled>Drain and rinse</button>
+                    <button type="button" data-command="drain" disabled>Drain</button>
                     <button type="button" data-command="rinse" disabled>Rinse</button>
                     <button type="button" data-command="fill" disabled>Fill</button>
                     <button type="button" data-command="add_cleaner" disabled>Add Cleaner</button>
@@ -153,7 +153,7 @@
                     <button type="button" id="command-yes">Yes</button>
                     <button type="button" class="quiet" id="command-cancel">Cancel</button>
                 </div>
-                <p class="muted">Runs what the sensors would, with the same checks, and is refused while that tank is busy. Stop turns everything off and holds the automatic runs until Resume.</p>
+                <p class="muted">Each button runs just that step, with the same checks as the automatic runs, and is refused while that tank is busy. Rinse stops at the dirty tank's sensor and leaves its water in the tank until you drain it. Fill doesn't add cleaner. Stop turns everything off and holds the automatic runs until Resume.</p>
             </section>
 
             <section class="card">

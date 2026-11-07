@@ -1,6 +1,7 @@
 #include "Flows/DirtyTank/States/Rinse.h"
 #include "Flows/DirtyTank/DirtyTank.h"
 #include "Flows/DirtyTank/Constants.h"
+#include "StateMachine/Context/ReturnToIdle.h"
 #include "GPIO/Pin.h"
 #include "GPIO/Constants.h"
 #include "Logging/Logging.h"
@@ -34,18 +35,22 @@ namespace ClankerCleaner::Flows::DirtyTank::States
 
     Transition Rinse::Run(Flows::DirtyTank::DirtyTankFlow& flow)
     {
+        Transition next = flow.HasContextOfType<StateMachine::Context::ReturnToIdle>()
+            ? Transition::Restart()
+            : Transition::Next();
+
         GPIO::PinState state = flow.pinMonitor->GetState(flow.settings->Gpio.DirtyTankSensorPin);
-        if(state.PinId != 0 && state.Triggered != false)
+        if(state != GPIO::PinState::Default && state.Triggered != false)
         {
-            Logging::Get(flow.GetName())->warn("dirty tank sensor is wet after {} s of rinsing", std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - rinseStart).count());
-            return Transition::Next();
+            uint64_t runTime = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - rinseStart).count();
+            Logging::Get(flow.GetName())->warn("dirty tank sensor is wet after {} s of rinsing", runTime);
+            return next;
         }
 
         if(rinseStart.time_since_epoch().count() == 0 || std::chrono::steady_clock::now() - rinseStart >= flow.settings->DirtyTank.RinseTime)
         {
-            return Transition::Next();
+            return next;
         }
-
 
         return Transition::Stay();
     }
