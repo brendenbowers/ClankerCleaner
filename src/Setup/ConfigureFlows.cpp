@@ -90,9 +90,13 @@ namespace ClankerCleaner::Setup
             flow.AddState<DirtyTank::States::EmptyTank>(DirtyTank::Constants::State::EMPTY_TANK_STATE,
                                                                 settings.DirtyTank.PumpRunTime,
                                                                 settings.DirtyTank.FullTankExtraPumpTime);
-            flow.AddState<DirtyTank::States::Rinse>();
+            flow.AddState<DirtyTank::States::Rinse>(DirtyTank::Constants::State::RINSE_TANK_STATE,
+                                                    settings.DirtyTank.RinseTime);
             flow.AddState<DirtyTank::States::EmptyTank>(DirtyTank::Constants::State::EMPTY_RINSED_STATE,
                                                                 settings.DirtyTank.RinsePumpRunTime);
+            // Leaves enough water in the tank to cover the end of the dip tube.
+            flow.AddState<DirtyTank::States::Rinse>(DirtyTank::Constants::State::REFILL_TANK_STATE,
+                                                    settings.DirtyTank.RefillTime);
             flow.SetLooping(true);
             LogPhases(flow);
         }

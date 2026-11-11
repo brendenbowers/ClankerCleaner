@@ -267,6 +267,7 @@ namespace ClankerCleaner::Config
         READ_SETTING_KEY(DirtyTank.MaxPumpRunTime, "dirty_tank.max_pump_run_seconds", 1, MaxPumpRunSeconds);
         READ_SETTING_KEY(DirtyTank.RinseTime, "dirty_tank.rinse_seconds", 1, MaxRinseSeconds);
         READ_SETTING_KEY(DirtyTank.RinsePumpRunTime, "dirty_tank.rinse_pump_run_seconds", 1, MaxPumpRunSeconds);
+        READ_SETTING_KEY(DirtyTank.RefillTime, "dirty_tank.refill_seconds", 1, MaxRinseSeconds);
         READ_SETTING_KEY(DirtyTank.SensorDebounce, "dirty_tank.sensor_debounce_seconds", 0, MaxSensorDebounceSeconds);
         READ_SETTING_KEY(CleanTank.SensorDebounce, "clean_tank.sensor_debounce_seconds", 0, MaxSensorDebounceSeconds);
         READ_SETTING_KEY(CleanTank.FillRunTime, "clean_tank.fill_run_seconds", 1, MaxPumpRunSeconds);

@@ -8,8 +8,9 @@
 
 namespace ClankerCleaner::Flows::DirtyTank::States
 {
-    Rinse::Rinse()
-        : StateMachine::StateWithFlow<Flows::DirtyTank::DirtyTankFlow>(Constants::State::RINSE_TANK_STATE)
+    Rinse::Rinse(const std::string name, std::chrono::seconds duration)
+        : StateMachine::StateWithFlow<Flows::DirtyTank::DirtyTankFlow>(name)
+        , duration(duration)
     {
     }
 
@@ -28,7 +29,7 @@ namespace ClankerCleaner::Flows::DirtyTank::States
             return Transition::Abort();
         }
 
-        Logging::Get(flow.GetName())->info("rinsing dirty tank");
+        Logging::Get(flow.GetName())->info("solenoid open for {} s", duration.count());
         rinseStart = std::chrono::steady_clock::now();
         return Transition::Next();
     }
@@ -47,7 +48,7 @@ namespace ClankerCleaner::Flows::DirtyTank::States
             return next;
         }
 
-        if(rinseStart.time_since_epoch().count() == 0 || std::chrono::steady_clock::now() - rinseStart >= flow.settings->DirtyTank.RinseTime)
+        if(rinseStart.time_since_epoch().count() == 0 || std::chrono::steady_clock::now() - rinseStart >= duration)
         {
             return next;
         }

@@ -31,6 +31,7 @@ namespace ClankerCleaner::Config
         constexpr std::chrono::seconds MaxPumpRunTime{600};
         constexpr std::chrono::seconds RinseTime{7};
         constexpr std::chrono::seconds RinsePumpRunTime{45};
+        constexpr std::chrono::seconds RefillTime{5};
         constexpr std::chrono::seconds SensorDebounce{10};
         constexpr std::chrono::seconds CleanTankSensorDebounce{10};
         constexpr std::chrono::seconds CleanTankFillRunTime{60};
@@ -73,6 +74,7 @@ namespace ClankerCleaner::Config
         settings.DirtyTank.MaxPumpRunTime = MaxPumpRunTime;
         settings.DirtyTank.RinseTime = RinseTime;
         settings.DirtyTank.RinsePumpRunTime = RinsePumpRunTime;
+        settings.DirtyTank.RefillTime = RefillTime;
         settings.DirtyTank.SensorDebounce =SensorDebounce;
         settings.CleanTank.SensorDebounce = CleanTankSensorDebounce;
         settings.CleanTank.FillRunTime = CleanTankFillRunTime;

@@ -60,6 +60,9 @@ namespace ClankerCleaner::Config
         std::chrono::seconds RinseTime{15};
         // How long the pump runs to empty the tank after each rinse.
         std::chrono::seconds RinsePumpRunTime{60};
+        // How long the rinse solenoid opens after the final empty, to leave enough water to
+        // cover the end of the dip tube.
+        std::chrono::seconds RefillTime{5};
         // How long the sensor must hold a new reading before Idle acts on it.
         std::chrono::seconds SensorDebounce{20};
     };
