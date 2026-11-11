@@ -274,6 +274,8 @@ The controller runs on its own, but it can also report to an MQTT broker. The `d
 
 A tank that's busy refuses a command, so commands can't interrupt a run. Only `stop` does that. See the [README](https://github.com/brendenbowers/ClankerCleaner#esp32-firmware) to set up a broker.
 
+The broker can also run on your own PC, in WSL, with nothing open to the internet. The dashboard then reaches it at an onion address, running Tor inside the page, so you don't need Tor Browser. This is optional: any other broker address connects directly. See [Local broker in WSL](https://github.com/brendenbowers/ClankerCleaner#local-broker-in-wsl).
+
 ## Timings
 
 These are our settings on the ESP32. Yours will depend on your pump and tank size. Change them in `src/Config/Config.ESP32.cpp`, or in the config file on a Raspberry Pi.

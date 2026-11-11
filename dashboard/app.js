@@ -11,6 +11,9 @@ const ConfirmSeconds = 10;
 // Longest side of a chosen dock picture, small enough to fit in localStorage.
 const MaxDockPicture = 800;
 const RightsCheckSeconds = 20;
+// Tor in the page can take minutes to build its first circuit to the onion service.
+const OnionConnectSeconds = 300;
+const OnionRightsCheckSeconds = 300;
 // MQTT 5's reason code for a publish this login isn't allowed to make.
 const NotAuthorized = 135;
 
@@ -52,6 +55,10 @@ const state = {
 };
 
 let client = null;
+// tor.js, once an onion broker has needed it.
+let torModule = null;
+// Bumped by each connect and sign-out, so a connect still waiting for Tor can tell it's stale.
+let connectAttempt = 0;
 let canCommand = false;
 let activity = loadJson(ActivityKey, []);
 let pendingCommand = null;
@@ -440,12 +447,12 @@ function showLogin(error) {
 // buttons stay off, and the next reconnect asks again.
 function checkCommandRights(settings, owner, onKnown) {
     const check = mqtt.connect(settings.url, {
+        ...transportOptions(settings),
         username: settings.username,
         password: settings.password,
         clientId: "dashboard-check-" + Math.random().toString(16).slice(2, 10),
         protocolVersion: 5,
         reconnectPeriod: 0,
-        connectTimeout: 15000,
         clean: true,
     });
     let finished = false;
@@ -465,7 +472,7 @@ function checkCommandRights(settings, owner, onKnown) {
         $("read-only").hidden = allowed;
         renderBoard();
     };
-    const timer = setTimeout(() => finish(null), RightsCheckSeconds * 1000);
+    const timer = setTimeout(() => finish(null), (isOnion(settings.url) ? OnionRightsCheckSeconds : RightsCheckSeconds) * 1000);
     check.on("error", () => finish(null));
     check.on("close", () => finish(null));
     check.on("connect", () => {
@@ -479,9 +486,63 @@ function checkCommandRights(settings, owner, onKnown) {
     });
 }
 
-function connect(settings) {
+function isOnion(url) {
+    try {
+        return /\.onion$/i.test(new URL(url).hostname);
+    } catch {
+        return false;
+    }
+}
+
+// An onion broker is reached through Tor running in this page (tor.js, loaded only then), so
+// no Tor Browser is needed. Tor's first start takes from tens of seconds to a few minutes.
+async function loadTor() {
+    if (!torModule) {
+        torModule = await import("./tor.js");
+    }
+    setPill("tor-pill", "tor: starting", "warn");
+    $("tor-pill").hidden = false;
+    torModule.startTor((message) => {
+        $("tor-pill").title = message;
+    }).then(
+        () => setPill("tor-pill", "tor: ready", "good"),
+        (error) => {
+            setPill("tor-pill", "tor: failed", "bad");
+            $("tor-pill").title = String(error?.message ?? error);
+        },
+    );
+}
+
+function transportOptions(settings) {
+    if (!isOnion(settings.url)) {
+        return { connectTimeout: 15000 };
+    }
+    return {
+        connectTimeout: OnionConnectSeconds * 1000,
+        // startTor returns the running client, or starts again if the last start failed.
+        createWebsocket: (url, protocols) => new torModule.TorWebSocket(torModule.startTor(), url, protocols),
+    };
+}
+
+async function connect(settings) {
     if (client) {
         client.end(true);
+        client = null;
+    }
+    const attempt = ++connectAttempt;
+    $("tor-pill").hidden = true;
+    if (isOnion(settings.url)) {
+        try {
+            await loadTor();
+        } catch (error) {
+            setPill("broker-pill", "broker: off", "");
+            showLogin("Tor couldn't load in this browser: " + (error?.message ?? error));
+            return;
+        }
+        // Signed out or connecting elsewhere while Tor loaded.
+        if (attempt !== connectAttempt) {
+            return;
+        }
     }
     setPill("broker-pill", "broker: connecting", "warn");
     $("login").hidden = true;
@@ -500,12 +561,12 @@ function connect(settings) {
     let connectedOnce = false;
     let rightsKnown = false;
     client = mqtt.connect(settings.url, {
+        ...transportOptions(settings),
         username: settings.username,
         password: settings.password,
         clientId: "dashboard-" + Math.random().toString(16).slice(2, 10),
         protocolVersion: 4,
         reconnectPeriod: 5000,
-        connectTimeout: 15000,
         clean: true,
     });
 
@@ -529,7 +590,8 @@ function connect(settings) {
     // An untrusted certificate looks like any other failed connection, so the help shows
     // whenever the first connection hasn't come up.
     client.on("close", () => {
-        if (!connectedOnce && client) {
+        // An onion address needs no certificate, so the help doesn't apply.
+        if (!connectedOnce && client && !isOnion(settings.url)) {
             $("cert-help").hidden = false;
         }
     });
@@ -558,6 +620,7 @@ function start() {
         connect(settings);
     });
     $("sign-out").addEventListener("click", () => {
+        connectAttempt += 1;
         if (client) {
             client.end(true);
             client = null;
