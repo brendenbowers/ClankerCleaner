@@ -67,7 +67,6 @@ chmod 600 /etc/mosquitto/acl
 
 cat > /etc/mosquitto/mosquitto.conf <<'EOF'
 # Clanker Cleaner broker.
-per_listener_settings false
 allow_anonymous false
 password_file /etc/mosquitto/passwd
 acl_file /etc/mosquitto/acl
@@ -108,23 +107,90 @@ mkdir -p /var/lib/tor /var/log/tor
 chown -R tor:tor /var/lib/tor /var/log/tor
 chmod 700 /var/lib/tor
 
-# --- Start script: Tor in the background, Mosquitto in the foreground so the distro stays up.
+# --- Start script: starts Tor and Mosquitto, and with "run", restarts either if it stops.
 cat > /usr/local/bin/clanker-broker <<'EOF'
 #!/bin/sh
-# Starts Tor and Mosquitto. Run with: wsl -d ClankerBroker -u root -- clanker-broker
-# Stop any earlier copies, and wait for them to exit: a new Tor can't start while the old
-# one still holds its data directory.
-for name in tor mosquitto; do
-    pkill -x "$name" 2>/dev/null || true
-    for i in $(seq 1 30); do
-        pgrep -x "$name" >/dev/null || break
-        sleep 1
-    done
-done
-tor --runasdaemon 1 -f /etc/tor/torrc
-exec mosquitto -c /etc/mosquitto/mosquitto.conf
+# Starts and watches the Clanker Cleaner broker: Tor (the onion service) and Mosquitto.
+#   clanker-broker start   start whichever isn't running, then return. /etc/wsl.conf runs
+#                          this whenever the distro starts.
+#   clanker-broker run     the same, then keep checking every 15 s and restart either one if
+#                          it stops. Runs until killed, which also keeps the distro up; the
+#                          Windows task runs this.
+#   clanker-broker status  show whether each is running.
+# Log: /var/log/clanker-broker.log
+
+Log=/var/log/clanker-broker.log
+
+note() {
+    echo "$(date -u '+%Y-%m-%d %H:%M:%S') $*" >> "$Log"
+}
+
+running() {
+    pgrep -x "$1" >/dev/null
+}
+
+start_tor() {
+    if ! running tor; then
+        if tor --runasdaemon 1 -f /etc/tor/torrc >/dev/null 2>&1; then
+            note "started tor"
+        else
+            note "tor failed to start; see /var/log/tor/notices.log"
+        fi
+    fi
+}
+
+start_mosquitto() {
+    if ! running mosquitto; then
+        if mosquitto -d -c /etc/mosquitto/mosquitto.conf; then
+            note "started mosquitto"
+        else
+            note "mosquitto failed to start; see /var/log/mosquitto/mosquitto.log"
+        fi
+    fi
+}
+
+start_all() {
+    start_tor
+    start_mosquitto
+}
+
+case "${1:-run}" in
+    start)
+        start_all
+        ;;
+    run)
+        note "supervisor started"
+        trap 'note "supervisor stopped"; exit 0' INT TERM
+        start_all
+        while :; do
+            sleep 15
+            running tor || { note "tor not running"; start_tor; }
+            running mosquitto || { note "mosquitto not running"; start_mosquitto; }
+        done
+        ;;
+    status)
+        for name in tor mosquitto; do
+            if running "$name"; then echo "$name: running"; else echo "$name: stopped"; fi
+        done
+        ;;
+    *)
+        echo "usage: clanker-broker [start|run|status]" >&2
+        exit 2
+        ;;
+esac
 EOF
 chmod 755 /usr/local/bin/clanker-broker
+
+# --- Start both whenever the distro starts.
+cat > /etc/wsl.conf <<'EOF'
+# ClankerBroker distro settings.
+[boot]
+# Start Tor and Mosquitto whenever the distro starts, however it's started.
+command = /usr/local/bin/clanker-broker start
+
+[user]
+default = root
+EOF
 
 mosquitto -c /etc/mosquitto/mosquitto.conf --test-config && echo "mosquitto config ok"
 tor --verify-config -f /etc/tor/torrc | tail -1

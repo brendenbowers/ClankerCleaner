@@ -486,6 +486,25 @@ function checkCommandRights(settings, owner, onKnown) {
     });
 }
 
+// An onion address has no TLS: Tor already encrypts the connection end to end, and the
+// in-page Tor client refuses wss://. So wss:// to an onion address becomes ws://, and the
+// standard TLS port, if given, the plain one.
+function brokerUrl(url) {
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol === "wss:" && /\.onion$/i.test(parsed.hostname)) {
+            parsed.protocol = "ws:";
+            if (parsed.port === "443") {
+                parsed.port = "";
+            }
+            return parsed.toString();
+        }
+    } catch {
+        // Not a URL; the connection reports it.
+    }
+    return url;
+}
+
 function isOnion(url) {
     try {
         return /\.onion$/i.test(new URL(url).hostname);
@@ -614,7 +633,7 @@ function start() {
         const form = event.target;
         // The broker's address isn't in the source, so it's always kept for next time;
         // the password only if asked.
-        const saved = { url: form.url.value.trim(), username: form.username.value.trim() };
+        const saved = { url: brokerUrl(form.url.value.trim()), username: form.username.value.trim() };
         const settings = { ...saved, password: form.password.value };
         saveJson(SettingsKey, form.remember.checked ? settings : saved);
         connect(settings);
@@ -682,6 +701,7 @@ function start() {
     }
     const settings = loadJson(SettingsKey, null);
     if (settings && settings.password) {
+        settings.url = brokerUrl(settings.url);
         connect(settings);
     } else {
         showLogin();

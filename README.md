@@ -68,13 +68,13 @@ The broker can run on this PC instead of a server: Mosquitto in a small Alpine d
 
 1. **Import Alpine:** download `alpine-minirootfs-<version>-x86_64.tar.gz` from alpinelinux.org, check its SHA-256 against the published one, then `wsl --import ClankerBroker %LOCALAPPDATA%\WSL\ClankerBroker <tarball> --version 2`.
 2. **Set it up:** from this repository's folder, run `wsl -d ClankerBroker -u root -- env BROKER_ADDRESS=<PC's LAN IP> BROKER_NAME=<PC's name> CREDENTIALS=<credentials file under /mnt/c> sh scripts/wsl-broker/setup.sh`. It installs Mosquitto and Tor, makes a CA and a server certificate for that address and name, adds the four logins (board, admin, a watch-only `dashboard` and a command-sending `operator`) with their permissions, and writes `/usr/local/bin/clanker-broker`.
-3. **Start it:** `wsl -d ClankerBroker -u root -- clanker-broker`. It runs Tor in the background and Mosquitto in the foreground, and the distro stops when it does.
-   To start it at logon without a window, register a scheduled task (no administrator rights needed). It restarts the broker if it stops:
+3. **Start it:** the setup adds `/etc/wsl.conf`, which starts Tor and Mosquitto whenever the distro starts, and `clanker-broker run`, which keeps the distro up and restarts either service within about 15 seconds if it stops. `clanker-broker status` shows whether each is running, and `/var/log/clanker-broker.log` records every start. WSL stops a distro when nothing is using it, so a scheduled task keeps the supervisor running: at logon, and every 5 minutes after, in case WSL was shut down (no administrator rights needed):
    ```powershell
-   $action = New-ScheduledTaskAction -Execute "$env:WINDIR\System32\conhost.exe" -Argument "--headless $env:WINDIR\System32\wsl.exe -d ClankerBroker -u root -- clanker-broker"
-   $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+   $action = New-ScheduledTaskAction -Execute "$env:WINDIR\System32\conhost.exe" -Argument "--headless $env:WINDIR\System32\wsl.exe -d ClankerBroker -u root -- /usr/local/bin/clanker-broker run"
+   $logon = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+   $repeat = New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes 5)
    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew -StartWhenAvailable
-   Register-ScheduledTask -TaskName "Clanker Cleaner broker" -Action $action -Trigger $trigger -Settings $settings
+   Register-ScheduledTask -TaskName "Clanker Cleaner broker" -Action $action -Trigger @($logon, $repeat) -Settings $settings
    ```
    It only runs while you're logged in, so keep the PC from sleeping if the dashboard should always reach it.
 4. **Let the boards in:** with WSL's mirrored networking (`networkingMode=Mirrored` in `.wslconfig`), the broker shares the PC's address. Allow inbound TCP 8883 from the local subnet in Windows Firewall, and reserve the PC's address in the router.
