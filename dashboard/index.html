@@ -146,6 +146,7 @@
                     <button type="button" data-command="rinse" disabled>Rinse</button>
                     <button type="button" data-command="fill" disabled>Fill</button>
                     <button type="button" data-command="add_cleaner" disabled>Add Cleaner</button>
+                    <button type="button" data-command="flush_tank" disabled>Flush Tank</button>
                     <button type="button" class="danger" data-command="stop" disabled>Stop</button>
                     <button type="button" data-command="resume" disabled>Resume</button>
                 </div>
@@ -154,7 +155,7 @@
                     <button type="button" id="command-yes">Yes</button>
                     <button type="button" class="quiet" id="command-cancel">Cancel</button>
                 </div>
-                <p class="muted">Each button runs just that step, with the same checks as the automatic runs, and is refused while that tank is busy. Rinse stops at the dirty tank's sensor and leaves its water in the tank until you drain it. Fill doesn't add cleaner. Stop turns everything off and holds the automatic runs until Resume.</p>
+                <p class="muted">Each button runs just that step, with the same checks as the automatic runs, and is refused while that tank is busy. Rinse stops at the dirty tank's sensor and leaves its water in the tank until you drain it. Fill doesn't add cleaner. Flush Tank runs the drain pump for a minute while pulsing the rinse to wash out the dirty tank, and leaves the pump running if the tank is still full. Stop turns everything off and holds the automatic runs until Resume.</p>
             </section>
 
             <section class="card">

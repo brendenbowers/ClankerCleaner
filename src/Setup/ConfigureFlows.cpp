@@ -19,6 +19,7 @@
 #include "Flows/Commands/Commands.h"
 #include "Flows/Commands/Constants.h"
 #include "Flows/Commands/States/Listen.h"
+#include "Flows/Commands/States/FlushTank.h"
 #endif
 
 #include "Logging/Logging.h"
@@ -133,6 +134,7 @@ namespace ClankerCleaner::Setup
             flow.dirtyTank = machine.FindFlow<Flows::DirtyTank::DirtyTankFlow>(Flows::DirtyTank::Constants::State::FLOWNAME);
             flow.cleanTank = machine.FindFlow<Flows::CleanTank::CleanTankFlow>(Flows::CleanTank::Constants::State::FLOWNAME);
             flow.AddState<Commands::States::Listen>();
+            flow.AddState<Commands::States::FlushTank>();
             LogPhases(flow);
         }
 #endif

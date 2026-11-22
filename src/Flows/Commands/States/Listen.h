@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <optional>
 
 #include "StateMachine/State.h"
 #include "Flows/Commands/Commands.h"
@@ -20,6 +21,6 @@ namespace ClankerCleaner::Flows::Commands::States
 
     private:
         // Why the command can't run; empty once it has been passed on.
-        std::string Handle(CommandFlow& flow, const std::string& command);
+        std::string Handle(CommandFlow& flow, const std::string& command, std::optional<Transition>& transition);
     };
 }

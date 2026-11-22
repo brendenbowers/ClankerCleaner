@@ -26,6 +26,7 @@ const outputNames = {
 const flowNames = {
     DirtyTankFlow: "Dirty tank",
     CleanTankFlow: "Clean tank",
+    CommandFlow: "Dirty tank",
 };
 const commandNames = {
     drain: "Drain",
@@ -34,6 +35,7 @@ const commandNames = {
     add_cleaner: "Add Cleaner",
     stop: "Stop",
     resume: "Resume",
+    flush_tank: "Flush Tank",
 };
 const stateNames = {
     DIRTY_TANK_IDLE: "Waiting",
@@ -43,7 +45,11 @@ const stateNames = {
     CLEAN_TANK_IDLE: "Waiting",
     FILL_TANK: "Filling",
     ADD_CLEANER: "Adding cleaner",
+    COMMAND_LISTEN: "Waiting for a command",
+    COMMAND_FLUSH_TANK: "Flushing",
 };
+// The command flow's flush runs the dirty tank's pump and rinse while that flow is set aside.
+const FlushState = "COMMAND_FLUSH_TANK";
 
 // Latest values, plus when we saw each change (retained values arrive with no time).
 const state = {
@@ -166,7 +172,22 @@ function renderOutput(id, name) {
     setCell(id, tag(output.on ? "On" : "Off", output.on ? "good" : ""), output.on ? since(output.at) : null);
 }
 
+// Steps that just wait for something to happen.
+function isWaiting(step) {
+    return step.endsWith("_IDLE") || step === "COMMAND_LISTEN";
+}
+
+function isFlushing() {
+    const commands = state.flows.CommandFlow;
+    return Boolean(commands && commands.state === FlushState && commands.phase !== "abort");
+}
+
 function renderFlow(id, name) {
+    // The dirty tank flow is stopped while a flush runs, so show the flush instead.
+    if (name === "DirtyTankFlow" && isFlushing()) {
+        setCell(id, tag(stateNames[FlushState], "good"), since(state.flows.CommandFlow.at));
+        return;
+    }
     const flow = state.flows[name];
     if (!flow) {
         setCell(id, document.createTextNode("–"));
@@ -177,7 +198,7 @@ function renderFlow(id, name) {
         setCell(id, tag(`${label} stopped`, "bad"), since(flow.at));
         return;
     }
-    const waiting = flow.state.endsWith("_IDLE");
+    const waiting = isWaiting(flow.state);
     setCell(id, tag(label, waiting ? "" : "good"), since(flow.at));
 }
 
@@ -391,7 +412,7 @@ function handleMessage(topic, payloadBytes, packet) {
         state.flows[parts[1]] = { ...payload, at };
     } else if (parts[0] === "flows" && parts[2] === "runs" && !packet.retain) {
         // Waiting steps are long and uneventful; leave them out.
-        if (!payload.state.endsWith("_IDLE") || payload.result === "aborted") {
+        if (!isWaiting(payload.state) || payload.result === "aborted") {
             const flow = flowNames[parts[1]] || parts[1];
             const step = stateNames[payload.state] || payload.state;
             const result = payload.result === "aborted" ? " (stopped)" : "";

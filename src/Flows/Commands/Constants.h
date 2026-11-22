@@ -6,6 +6,7 @@ namespace ClankerCleaner::Flows::Commands::Constants
     {
         constexpr const char* FLOWNAME = "CommandFlow";
         constexpr const char* LISTEN_STATE = "COMMAND_LISTEN";
+        constexpr const char* FLUSH_TANK_STATE = "COMMAND_FLUSH_TANK";
     }
 
     namespace Command
@@ -16,5 +17,6 @@ namespace ClankerCleaner::Flows::Commands::Constants
         constexpr const char* ADD_CLEANER = "add_cleaner";
         constexpr const char* STOP = "stop";
         constexpr const char* RESUME = "resume";
+        constexpr const char* FLUSH_TANK = "flush_tank";
     }
 }

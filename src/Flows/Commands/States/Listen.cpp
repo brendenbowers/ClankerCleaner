@@ -38,10 +38,12 @@ namespace ClankerCleaner::Flows::Commands::States
 
     Transition Listen::Run(CommandFlow& flow)
     {
+        
+        std::optional<Transition> transition;
         // One per tick, so the tank flows act on each command before the next is checked.
         if(const std::optional<std::string> command = Telemetry::TakeCommand())
         {
-            const std::string refused = Handle(flow, *command);
+            const std::string refused = Handle(flow, *command, transition);
             if(refused.empty())
             {
                 Logging::Get(flow.GetName())->info("{}: accepted", *command);
@@ -53,11 +55,14 @@ namespace ClankerCleaner::Flows::Commands::States
             TELEMETRY_TRACK(CommandHandled, *command, refused.empty(), refused);
             flow.Wake();
         }
-        return Transition::Stay();
+        return transition.value_or(Transition::Stay());
     }
 
-    std::string Listen::Handle(CommandFlow& flow, const std::string& command)
+    std::string Listen::Handle(CommandFlow& flow, const std::string& command, std::optional<Transition>& transition)
     {
+        using namespace Constants;
+        using namespace StateMachine::Context;
+
         namespace Command = Constants::Command;
         const char* dirtyIdle = DirtyTank::Constants::State::IDLE_STATE;
         const char* cleanIdle = CleanTank::Constants::State::IDLE_STATE;
@@ -160,6 +165,12 @@ namespace ClankerCleaner::Flows::Commands::States
             {
                 return "unable to add cleaner";
             }
+            return {};
+        }
+
+        if(command == Command::FLUSH_TANK)
+        {
+            transition = Transition::GoTo(Constants::State::FLUSH_TANK_STATE);
             return {};
         }
 
